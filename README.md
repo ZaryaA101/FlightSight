@@ -14,6 +14,9 @@ Flight Sight is an application designed to help users make more informed decisio
 <img width="800" height="500" alt="Screenshot 2025-10-30 210759" src="https://github.com/user-attachments/assets/b0c692b5-2144-4fc7-8a91-aa2e1b60c52a" />
 <img width="800" height="500" alt="Screenshot 2025-10-30 211225" src="https://github.com/user-attachments/assets/e18bdfd8-22b7-46e8-8a00-340aa4d8191d" />
 
+## Navigation
+In progress...
+
 ## Dataset
 per-capita-co2-emissions-from-domestic-aviation 
 Domestic aviation represents flights which depart and arrive within the same country. CO₂ emissions from commercial passenger flights only.
