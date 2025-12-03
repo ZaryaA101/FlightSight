@@ -1,0 +1,13 @@
+body {
+  font-family: Arial;
+  padding: 20px;
+}
+
+#members div {
+  border-bottom: 1px solid #ccc;
+  padding: 8px;
+}
+
+button {
+  margin-left: 10px;
+}
