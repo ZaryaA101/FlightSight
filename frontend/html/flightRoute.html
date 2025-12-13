@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Routes</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="flight-container">
+    
+    <!-- Left: World Map -->
+    <div class="map-section">
+      <img src="images/world-map.png" alt="World Map" class="world-map">
+    </div>
+
+    <!-- Right: Upper and Lower sections -->
+    <div class="right-section">
+      
+      <!-- Upper Right: User Input -->
+      <div class="user-input">
+        <h2>Search Flights</h2>
+        <form id="flightForm">
+          <label for="origin">Origin:</label>
+          <input type="text" id="origin" name="origin" placeholder="Enter origin airport">
+
+          <label for="destination">Destination:</label>
+          <input type="text" id="destination" name="destination" placeholder="Enter destination airport">
+
+          <button type="submit">Search</button>
+        </form>
+      </div>
+
+      <!-- Lower Right: Available Airports -->
+      <div class="available-airports">
+        <h3>Available Airports</h3>
+        <ul id="airportList">
+          <li>JFK - New York</li>
+          <li>LHR - London</li>
+          <li>NRT - Tokyo</li>
+          <li>SYD - Sydney</li>
+        </ul>
+      </div>
+
+      <!-- Continue Button -->
+      <div class="continue-btn-container">
+        <button class="continue-btn">Continue to Select Dates →</button>
+      </div>
+
+    </div>
+
+  </div>
+  <script src="../js/script.js"></script>
+</body>
+</html>
