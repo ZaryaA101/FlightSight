@@ -1,70 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flight Sight</title>
-  <link rel="stylesheet" href="../css/styles.css">
-</head>
-<body>
-  <!-- Navbar -->
-  <header class="navbar">
-    <div class="logo">✈️ Flight Sight</div>
-    <nav>
-      <a href="#">My Trips</a>
-      <a href="#">Saved Flights</a>
-      <button class="signout">Sign Out</button>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flight Sight</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="hero-content">
-      <h1>Find Your Perfect Flight</h1>
-      <p>Compare prices, safety, environmental impact, and more</p>
-      <button class="search-btn">🔍 Search Flights</button>
-      <span class="hint">Click to select your route and travel dates</span>
+  <body>
+    <header class="navbar">
+      <div class="logo">✈️ Flight Sight</div>
+      <nav>
+        <a href="#">My Trips</a>
+        <a href="#">Saved Flights</a>
+        <button class="signout">Sign Out</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Find Your Perfect Flight</h1>
+        <p>Compare prices, safety, environmental impact, and more</p>
+        <button class="search-btn">🔍 Search Flights</button>
+        <span class="hint">Click to select your route and travel dates</span>
+      </div>
+    </section>
+
+    <section class="why">
+      <h2>Why Choose Flight Sight?</h2>
+      <p class="subtitle">
+        We provide comprehensive insights to help you make informed travel
+        decisions
+      </p>
+
+      <div class="cards">
+        <div class="card">
+          <div class="icon blue">🛡️</div>
+          <h3>Safety Ratings</h3>
+          <p>
+            Compare comprehensive safety ratings across airlines and routes
+            based on incident reports and maintenance records.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="icon green">🍃</div>
+          <h3>Environmental Impact</h3>
+          <p>
+            Track carbon emissions and environmental footprint for each flight
+            to make sustainable choices.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="icon orange">📈</div>
+          <h3>Demand Heat Map</h3>
+          <p>
+            Visualize global flight demand surges and pricing patterns to find
+            the best booking opportunities.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="icon purple">📈</div>
+          <h3>Saved Flights</h3>
+          <p>
+            View and manage your saved flight bookings with complete details
+            including pricing, weather forecasts, and seat availability
+            predictions.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="icon red">📈</div>
+          <h3>Smart Comparisons</h3>
+          <p>
+            Compare similar flights side-by-side to find the best option based
+            on safety, environmental impact, price, and seat availability.
+          </p>
+        </div>
+      </div>
+    </section>
+    <button id="ai-button" class="ai-button">?</button>
+
+    <!-- AI Assistant Popup -->
+    <div id="ai-box" class="ai-box hidden">
+      <div class="ai-header">
+        <span>Flight Sight Assistant</span>
+        <button id="ai-close" class="ai-close">✕</button>
+      </div>
+
+      <div class="ai-messages">
+        <p class="ai-placeholder">Ask me anything about flights!</p>
+      </div>
+
+      <div class="ai-input-row">
+        <input type="text" id="ai-input" placeholder="Type your question..." />
+        <button id="ai-send">Send</button>
+      </div>
     </div>
-  </section>
 
-  <!-- Why Choose Section -->
-  <section class="why">
-    <h2>Why Choose Flight Sight?</h2>
-    <p class="subtitle">We provide comprehensive insights to help you make informed travel decisions</p>
-
-    <div class="cards">
-      <div class="card">
-        <div class="icon blue">🛡️</div>
-        <h3>Safety Ratings</h3>
-        <p>Compare comprehensive safety ratings across airlines and routes based on incident reports and maintenance records.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon green">🍃</div>
-        <h3>Environmental Impact</h3>
-        <p>Track carbon emissions and environmental footprint for each flight to make sustainable choices.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon orange">📈</div>
-        <h3>Demand Heat Map</h3>
-        <p>Visualize global flight demand surges and pricing patterns to find the best booking opportunities.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon purple">🔖</div>
-        <h3>Saved Flights</h3>
-        <p>View and manage your saved flight bookings with complete details including pricing, weather forecasts, and seat availability predictions.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon red">🔍</div>
-        <h3>Smart Comparisons</h3>
-        <p>Compare similar flights side-by-side to find the best option based on safety, environmental impact, price, and seat availability.</p>
-      </div>
-    </div>
-  </section>
-
-  <script src="../js/script.js"></script>
-</body>
+    <script src="../js/script.js"></script>
+  </body>
 </html>
