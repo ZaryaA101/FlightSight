@@ -177,3 +177,38 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`Server running on http://localhost:${PORT}`)
 );
+
+//ZARYA'S FEATURES
+
+//Emissions
+app.get("/emissions", (req, res) => {
+  res.json({ airline: "Delta", co2: 180 });
+});
+
+//Seat + Weather
+app.get("/seatweather", (req, res) => {
+  res.json({ seat_status: "Available", weather: "Clear" });
+});
+
+//Recommendation System
+app.get("/recommendation", (req, res) => {
+  res.json({ best_airline: "United Airlines" });
+});
+
+//Dataset Analysis
+app.get("/analysis", (req, res) => {
+  res.json({
+    avg_price: 320,
+    cheapest_city: "Dallas",
+    busiest_month: "July"
+  });
+});
+
+//Heatmap Data
+app.get("/heatmap", (req, res) => {
+  res.json([
+    { city: "LA", demand: 90 },
+    { city: "NYC", demand: 75 },
+    { city: "Chicago", demand: 60 }
+  ]);
+});

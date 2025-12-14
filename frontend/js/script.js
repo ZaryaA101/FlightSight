@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  /*   GLOBAL NAVIGATION (from script.js) */
+  /* ================= GLOBAL NAVIGATION ================= */
   const searchBtn = document.querySelector(".search-btn");
   if (searchBtn) {
     searchBtn.addEventListener("click", () => {
@@ -18,17 +18,15 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!messageBox) return;
       messageBox.textContent = text;
       messageBox.classList.remove("error", "success");
-      if (text) {
-        messageBox.classList.add(type);
-      }
+      if (text) messageBox.classList.add(type);
     }
 
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       showLoginMessage("");
 
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
+      const email = emailInput?.value.trim();
+      const password = passwordInput?.value.trim();
 
       if (!email || !password) {
         showLoginMessage("Please enter both email and password.");
@@ -42,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ email, password }),
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
           showLoginMessage(data.error || "Login failed.");
@@ -52,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showLoginMessage("Login successful. Redirecting…", "success");
 
         setTimeout(() => {
-          // change this if your main page has a different name
           window.location.href = "homePage.html";
         }, 600);
       } catch (err) {
@@ -62,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ================= SIGHUP PAGE LOGIC ================= */
+  /* ================= SIGNUP PAGE LOGIC ================= */
   const signupForm = document.getElementById("signup-form");
   if (signupForm) {
     const firstNameInput = document.getElementById("firstName");
@@ -76,20 +73,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!messageBox) return;
       messageBox.textContent = text;
       messageBox.classList.remove("error", "success");
-      if (text) {
-        messageBox.classList.add(type);
-      }
+      if (text) messageBox.classList.add(type);
     }
 
     signupForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       showSignupMessage("");
 
-      const first_name = firstNameInput.value.trim();
-      const last_name = lastNameInput.value.trim();
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
-      const confirmPassword = confirmPasswordInput.value.trim();
+      const first_name = firstNameInput?.value.trim();
+      const last_name = lastNameInput?.value.trim();
+      const email = emailInput?.value.trim();
+      const password = passwordInput?.value.trim();
+      const confirmPassword = confirmPasswordInput?.value.trim();
 
       if (!first_name || !last_name || !email || !password || !confirmPassword) {
         showSignupMessage("Please fill out all fields.");
@@ -108,11 +103,10 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ first_name, last_name, email, password }),
         });
 
-        let data;
-        try {
-          data = await response.json();
-        } catch (err) {
-          console.error("Could not parse JSON from /auth/signup", err);
+        const data = await response.json().catch(() => null);
+
+        if (!data) {
+          console.error("Could not parse JSON from /auth/signup");
           showSignupMessage("Unexpected server response.");
           return;
         }
@@ -139,10 +133,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const airportElements = document.querySelectorAll("#airportList li");
 
   if (airportElements.length) {
-
-    const airports = Array.from(airportElements).map(li => ({
+    const airports = Array.from(airportElements).map((li) => ({
       code: li.dataset.code,
-      name: li.textContent
+      name: li.textContent,
     }));
 
     let selectedOrigin = null;
@@ -151,6 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function setupAutocomplete(inputId, suggestionId, onSelect) {
       const input = document.getElementById(inputId);
       const suggestions = document.getElementById(suggestionId);
+
+      if (!input || !suggestions) return;
 
       input.addEventListener("input", () => {
         const value = input.value.toLowerCase();
@@ -161,16 +156,17 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const matches = airports.filter(a =>
-          a.name.toLowerCase().includes(value) ||
-          a.code.toLowerCase().includes(value)
+        const matches = airports.filter(
+          (a) =>
+            a.name.toLowerCase().includes(value) ||
+            a.code.toLowerCase().includes(value)
         );
 
-        matches.forEach(airport => {
+        matches.forEach((airport) => {
           const li = document.createElement("li");
-          li.textContent = airport.name;
+          li.textContent = `${airport.name} (${airport.code})`;
           li.addEventListener("click", () => {
-            input.value = airport.name;
+            input.value = `${airport.name} (${airport.code})`;
             suggestions.style.display = "none";
             onSelect(airport);
           });
@@ -180,18 +176,18 @@ document.addEventListener("DOMContentLoaded", () => {
         suggestions.style.display = matches.length ? "block" : "none";
       });
 
-      document.addEventListener("click", e => {
+      document.addEventListener("click", (e) => {
         if (!input.contains(e.target) && !suggestions.contains(e.target)) {
           suggestions.style.display = "none";
         }
       });
     }
 
-    setupAutocomplete("origin", "originSuggestions", airport => {
+    setupAutocomplete("origin", "originSuggestions", (airport) => {
       selectedOrigin = airport;
     });
 
-    setupAutocomplete("destination", "destinationSuggestions", airport => {
+    setupAutocomplete("destination", "destinationSuggestions", (airport) => {
       selectedDestination = airport;
     });
 
@@ -202,16 +198,20 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        localStorage.setItem("origin", JSON.stringify(selectedOrigin));
-        localStorage.setItem("destination", JSON.stringify(selectedDestination));
+        // ✅ Store using the SAME keys your calendar page reads
+        localStorage.setItem("fromAirport", selectedOrigin.code);
+        localStorage.setItem("toAirport", selectedDestination.code);
+
+        // Optional: store full objects too
+        localStorage.setItem("originObj", JSON.stringify(selectedOrigin));
+        localStorage.setItem("destinationObj", JSON.stringify(selectedDestination));
 
         window.location.href = "calendar.html";
       });
     }
   }
 
-    /* ================= CALENDAR PAGE LOGIC ================= */
-  const dateInput = document.getElementById("dateRange");
+  /* ================= CALENDAR PAGE LOGIC ================= */
   const roundTripBtn = document.getElementById("roundTrip");
   const oneWayBtn = document.getElementById("oneWay");
   const searchFlightBtn = document.getElementById("searchFlights");
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let tripType = "round"; // default
 
-  // ===== LOAD ROUTE FROM STORAGE =====
+  // LOAD ROUTE FROM STORAGE
   const from = localStorage.getItem("fromAirport");
   const to = localStorage.getItem("toAirport");
 
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
     routeDisplay.value = `${from} → ${to}`;
   }
 
-  // Only set up Flatpickr if we're on the calendar page AND flatpickr exists
+  // Only set up Flatpickr if on calendar page AND flatpickr exists
   if (calendarContainer && typeof flatpickr !== "undefined") {
     const fp = flatpickr(calendarContainer, {
       mode: "range",
@@ -249,10 +249,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         updateSearchButton();
-      }
+      },
     });
 
-    // ===== TRIP TYPE TOGGLE =====
+    // TRIP TYPE TOGGLE
     roundTripBtn?.addEventListener("click", () => {
       tripType = "round";
       roundTripBtn.classList.add("active");
@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateSearchButton();
     });
 
-    // ===== SEARCH BUTTON LOGIC =====
+    // SEARCH BUTTON LOGIC
     searchFlightBtn?.addEventListener("click", () => {
       const depart = localStorage.getItem("departureDate");
       const ret = localStorage.getItem("returnDate");
@@ -299,15 +299,11 @@ document.addEventListener("DOMContentLoaded", () => {
       window.location.href = "flights.html";
     });
 
-    // ===== ENABLE / DISABLE SEARCH BUTTON =====
     function updateSearchButton() {
       const depart = localStorage.getItem("departureDate");
       const ret = localStorage.getItem("returnDate");
 
-      if (
-        (tripType === "one" && depart) ||
-        (tripType === "round" && depart && ret)
-      ) {
+      if ((tripType === "one" && depart) || (tripType === "round" && depart && ret)) {
         searchFlightBtn.disabled = false;
         searchFlightBtn.classList.remove("disabled");
       } else {
@@ -316,52 +312,56 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Initialize button state
     updateSearchButton();
   }
 
+  /* ================= AI ASSISTANT UI (Home Only) ================= */
+  const aiButton = document.getElementById("ai-button");
+  const aiBox = document.getElementById("ai-box");
+  const aiClose = document.getElementById("ai-close");
+  const aiInput = document.getElementById("ai-input");
+  const aiSend = document.getElementById("ai-send");
+  const aiMessages = document.querySelector(".ai-messages");
 
-  
-  /* AI ASSISTANT UI (Home Only) */
-    const aiButton = document.getElementById("ai-button");
-    const aiBox = document.getElementById("ai-box");
-    const aiClose = document.getElementById("ai-close");
-    const aiInput = document.getElementById("ai-input");
-    const aiSend = document.getElementById("ai-send");
-    const aiMessages = document.querySelector(".ai-messages");
-
-    if (aiButton && aiBox) {
-
+  if (aiButton && aiBox && aiClose && aiInput && aiSend && aiMessages) {
     aiButton.addEventListener("click", () => {
-        aiBox.classList.toggle("hidden");
+      aiBox.classList.toggle("hidden");
     });
 
     aiClose.addEventListener("click", () => {
-        aiBox.classList.add("hidden");
+      aiBox.classList.add("hidden");
     });
 
-    aiSend.addEventListener("click", () => {
-        const text = aiInput.value.trim();
-        if (!text) return;
+    function sendAiMessage() {
+      const text = aiInput.value.trim();
+      if (!text) return;
 
-        const userMsg = document.createElement("p");
-        userMsg.textContent = "You: " + text;
-        aiMessages.appendChild(userMsg);
+      const userMsg = document.createElement("p");
+      userMsg.textContent = "You: " + text;
+      aiMessages.appendChild(userMsg);
 
-        aiInput.value = "";
+      aiInput.value = "";
 
-        const reply = document.createElement("p");
-        reply.textContent = "Assistant: (I’m not connected yet, but I will be!)";
-        reply.style.opacity = "0.7";
-        aiMessages.appendChild(reply);
+      const reply = document.createElement("p");
+      reply.textContent = "Assistant: (I’m not connected yet, but I will be!)";
+      reply.style.opacity = "0.7";
+      aiMessages.appendChild(reply);
 
-        aiMessages.scrollTop = aiMessages.scrollHeight;
-    });
-
-    aiInput?.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") aiSend.click();
-    });
+      aiMessages.scrollTop = aiMessages.scrollHeight;
     }
 
+    aiSend.addEventListener("click", sendAiMessage);
 
+    aiInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendAiMessage();
+    });
+  }
+
+  /* ================= OPTIONAL: OTHER BUTTON NAV ================= */
+  const selectDatesBtn = document.getElementById("selectDatesBtn");
+  if (selectDatesBtn) {
+    selectDatesBtn.addEventListener("click", () => {
+      window.location.href = "Booking.html";
+    });
+  }
 });
