@@ -1,3 +1,27 @@
+<<<<<<< HEAD
+=======
+document.addEventListener("DOMContentLoaded", function() {
+  const searchBtn = document.querySelector(".search-btn");
+  if (searchBtn) {
+    searchBtn.addEventListener("click", function() {
+      window.location.href = "flightRoute.html";
+    });
+  }
+
+  const continueBtn = document.querySelector(".continue-btn");
+  if (continueBtn) {
+    continueBtn.addEventListener("click", function() {
+      window.location.href = "calendar.html";
+    });
+  }
+
+  const selectDatesBtn = document.getElementById("selectDatesBtn");
+  if (selectDatesBtn) {
+    selectDatesBtn.addEventListener("click", function () {
+      window.location.href = "Booking.html";
+    });
+  }
+>>>>>>> c4552bc00d4164c8242cee89fa7fe33aae5a02bf
 document.addEventListener("DOMContentLoaded", () => {
   /* ================= GLOBAL NAVIGATION ================= */
   const searchBtn = document.querySelector(".search-btn");
@@ -368,8 +392,17 @@ document.addEventListener("DOMContentLoaded", () => {
       aiMessages.scrollTop = aiMessages.scrollHeight;
     });
 
+<<<<<<< HEAD
     aiInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") aiSend.click();
     });
   }
+=======
+    aiInput?.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") aiSend.click();
+    });
+    }
+
+
+>>>>>>> c4552bc00d4164c8242cee89fa7fe33aae5a02bf
 });
