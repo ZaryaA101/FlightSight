@@ -1,31 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Select Dates</title>
-  <link rel="stylesheet" href="../css/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Travel Dates</title>
+  <link rel="stylesheet" href="../css/styles.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
+
 <body>
-  <div class="calendar-container">
-    <h2>Select Travel Dates</h2>
-    <div class="calendar">
-      <div class="calendar-header">
-        <button id="prevMonth">&lt;</button>
-        <span id="monthYear"></span>
-        <button id="nextMonth">&gt;</button>
-      </div>
-      <div class="calendar-body">
-        <div class="weekdays">
-          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
-          <div>Thu</div><div>Fri</div><div>Sat</div>
-        </div>
-        <div class="days" id="days"></div>
-      </div>
+
+  <!-- PAGE HEADER -->
+  <header class="page-header">
+    <a href="flightRoute.html" class="back-link">←</a>
+    <div>
+      <h1>Select Travel Dates</h1>
+      <p id="routeText"></p>
     </div>
-    <button class="continue-btn" id="selectDatesBtn">Continue →</button>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <div class="flight-container">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-section">
+
+      <!-- TRIP DETAILS -->
+      <div class="card">
+        <h3>Trip Details</h3>
+        <p class="muted">Your selected route</p>
+
+        <div class="route-box">
+          <div class="airport departure" id="departureInfo"></div>
+          <hr />
+          <div class="airport destination" id="destinationInfo"></div>
+        </div>
+
+        <p class="route-code" id="routeCode"></p>
+      </div>
+
+      <!-- TRIP TYPE -->
+      <div class="card">
+        <h3>Trip Type</h3>
+        <div class="trip-type">
+          <button class="active">Round Trip</button>
+          <button>One Way</button>
+        </div>
+      </div>
+
+      <!-- INSTRUCTIONS -->
+      <div class="card info-box">
+        <strong>Select your dates:</strong>
+        <p>
+          Click on your departure date first, then click on your return
+          date to complete your selection.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="card right-section">
+
+      <h3>Departure & Return Dates</h3>
+      <p class="muted">Select your travel dates</p>
+
+      <div class="date-card">
+        <div id="calendarContainer"></div>
+      </div>
+
+      <button class="continue-btn" id="searchFlights">Search Flights →</button>
+    </div>
+
   </div>
 
   <script src="../js/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <!-- LOAD ROUTE DATA -->
+  <script>
+    const origin = JSON.parse(localStorage.getItem("origin"));
+    const destination = JSON.parse(localStorage.getItem("destination"));
+
+    if (origin && destination) {
+      document.getElementById("routeText").textContent =
+        `${origin.name} → ${destination.name}`;
+
+      document.getElementById("departureInfo").innerHTML =
+        `<strong>${origin.code}</strong><br>${origin.name}`;
+
+      document.getElementById("destinationInfo").innerHTML =
+        `<strong>${destination.code}</strong><br>${destination.name}`;
+
+      document.getElementById("routeCode").textContent =
+        `${origin.code} → ${destination.code}`;
+    }
+  </script>
+
 </body>
 </html>
