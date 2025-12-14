@@ -210,12 +210,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ================= CALENDAR PAGE LOGIC ================= */
+    /* ================= CALENDAR PAGE LOGIC ================= */
   const dateInput = document.getElementById("dateRange");
   const roundTripBtn = document.getElementById("roundTrip");
   const oneWayBtn = document.getElementById("oneWay");
   const searchFlightBtn = document.getElementById("searchFlights");
   const routeDisplay = document.getElementById("selectedRoute");
+  const calendarContainer = document.getElementById("calendarContainer");
 
   let tripType = "round"; // default
 
@@ -227,96 +228,140 @@ document.addEventListener("DOMContentLoaded", () => {
     routeDisplay.value = `${from} → ${to}`;
   }
 
-  // ===== FLATPICKR INIT =====
-  // Target the new container div instead of input
-  const calendarContainer = document.getElementById("calendarContainer");
+  // Only set up Flatpickr if we're on the calendar page AND flatpickr exists
+  if (calendarContainer && typeof flatpickr !== "undefined") {
+    const fp = flatpickr(calendarContainer, {
+      mode: "range",
+      minDate: "today",
+      dateFormat: "M d, Y",
+      inline: true,
+      allowInput: false,
+      showMonths: window.innerWidth < 768 ? 1 : 2,
+      onChange(selectedDates) {
+        if (tripType === "one" && selectedDates.length >= 1) {
+          localStorage.setItem("departureDate", selectedDates[0].toISOString());
+          localStorage.removeItem("returnDate");
+        }
 
-  const fp = flatpickr(calendarContainer, {
-    mode: "range",
-    minDate: "today",
-    dateFormat: "M d, Y",
-    inline: true,        // always show calendar
-    allowInput: false,   // disable typing
-    showMonths: window.innerWidth < 768 ? 1 : 2,     // show two months side by side
+        if (tripType === "round" && selectedDates.length === 2) {
+          localStorage.setItem("departureDate", selectedDates[0].toISOString());
+          localStorage.setItem("returnDate", selectedDates[1].toISOString());
+        }
 
-    onChange(selectedDates) {
-      if (tripType === "one" && selectedDates.length >= 1) {
-        localStorage.setItem("departureDate", selectedDates[0].toISOString());
-        localStorage.removeItem("returnDate");
+        updateSearchButton();
       }
+    });
 
-      if (tripType === "round" && selectedDates.length === 2) {
-        localStorage.setItem("departureDate", selectedDates[0].toISOString());
-        localStorage.setItem("returnDate", selectedDates[1].toISOString());
-      }
+    // ===== TRIP TYPE TOGGLE =====
+    roundTripBtn?.addEventListener("click", () => {
+      tripType = "round";
+      roundTripBtn.classList.add("active");
+      oneWayBtn?.classList.remove("active");
+
+      fp.set("mode", "range");
+      fp.clear();
+
+      localStorage.removeItem("departureDate");
+      localStorage.removeItem("returnDate");
 
       updateSearchButton();
+    });
+
+    oneWayBtn?.addEventListener("click", () => {
+      tripType = "one";
+      oneWayBtn.classList.add("active");
+      roundTripBtn?.classList.remove("active");
+
+      fp.set("mode", "single");
+      fp.clear();
+
+      localStorage.removeItem("departureDate");
+      localStorage.removeItem("returnDate");
+
+      updateSearchButton();
+    });
+
+    // ===== SEARCH BUTTON LOGIC =====
+    searchFlightBtn?.addEventListener("click", () => {
+      const depart = localStorage.getItem("departureDate");
+      const ret = localStorage.getItem("returnDate");
+
+      if (!depart) {
+        alert("Please select a departure date.");
+        return;
+      }
+
+      if (tripType === "round" && !ret) {
+        alert("Please select a return date.");
+        return;
+      }
+
+      window.location.href = "flights.html";
+    });
+
+    // ===== ENABLE / DISABLE SEARCH BUTTON =====
+    function updateSearchButton() {
+      const depart = localStorage.getItem("departureDate");
+      const ret = localStorage.getItem("returnDate");
+
+      if (
+        (tripType === "one" && depart) ||
+        (tripType === "round" && depart && ret)
+      ) {
+        searchFlightBtn.disabled = false;
+        searchFlightBtn.classList.remove("disabled");
+      } else {
+        searchFlightBtn.disabled = true;
+        searchFlightBtn.classList.add("disabled");
+      }
     }
-  });
 
-  // ===== TRIP TYPE TOGGLE =====
-  roundTripBtn?.addEventListener("click", () => {
-    tripType = "round";
-    roundTripBtn.classList.add("active");
-    oneWayBtn.classList.remove("active");
-
-    fp.set("mode", "range");
-    fp.clear();
-
-    localStorage.removeItem("departureDate");
-    localStorage.removeItem("returnDate");
-
+    // Initialize button state
     updateSearchButton();
-  });
-
-  oneWayBtn?.addEventListener("click", () => {
-    tripType = "one";
-    oneWayBtn.classList.add("active");
-    roundTripBtn.classList.remove("active");
-
-    fp.set("mode", "single");
-    fp.clear();
-
-    localStorage.removeItem("departureDate");
-    localStorage.removeItem("returnDate");
-
-    updateSearchButton();
-  });
-
-  // ===== SEARCH BUTTON LOGIC =====
-  searchBtn?.addEventListener("click", () => {
-    const depart = localStorage.getItem("departureDate");
-    const ret = localStorage.getItem("returnDate");
-
-    if (!depart) {
-      alert("Please select a departure date.");
-      return;
-    }
-
-    if (tripType === "round" && !ret) {
-      alert("Please select a return date.");
-      return;
-    }
-
-    // Navigate to flights page
-    window.location.href = "flights.html";
-  });
-
-  // ===== ENABLE / DISABLE SEARCH BUTTON =====
-  function updateSearchButton() {
-    const depart = localStorage.getItem("departureDate");
-    const ret = localStorage.getItem("returnDate");
-
-    if (
-      (tripType === "one" && depart) ||
-      (tripType === "round" && depart && ret)
-    ) {
-      searchBtn.disabled = false;
-      searchBtn.classList.remove("disabled");
-    } else {
-      searchBtn.disabled = true;
-      searchBtn.classList.add("disabled");
-    }
   }
+
+
+  
+  /* AI ASSISTANT UI (Home Only) */
+    const aiButton = document.getElementById("ai-button");
+    const aiBox = document.getElementById("ai-box");
+    const aiClose = document.getElementById("ai-close");
+    const aiInput = document.getElementById("ai-input");
+    const aiSend = document.getElementById("ai-send");
+    const aiMessages = document.querySelector(".ai-messages");
+
+    if (aiButton && aiBox) {
+
+    aiButton.addEventListener("click", () => {
+        aiBox.classList.toggle("hidden");
+    });
+
+    aiClose.addEventListener("click", () => {
+        aiBox.classList.add("hidden");
+    });
+
+    aiSend.addEventListener("click", () => {
+        const text = aiInput.value.trim();
+        if (!text) return;
+
+        const userMsg = document.createElement("p");
+        userMsg.textContent = "You: " + text;
+        aiMessages.appendChild(userMsg);
+
+        aiInput.value = "";
+
+        const reply = document.createElement("p");
+        reply.textContent = "Assistant: (I’m not connected yet, but I will be!)";
+        reply.style.opacity = "0.7";
+        aiMessages.appendChild(reply);
+
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    });
+
+    aiInput?.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") aiSend.click();
+    });
+    }
+
 
 });
