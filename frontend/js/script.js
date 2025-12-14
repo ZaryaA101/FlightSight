@@ -25,8 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       showLoginMessage("");
 
-      const email = emailInput?.value.trim();
-      const password = passwordInput?.value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
 
       if (!email || !password) {
         showLoginMessage("Please enter both email and password.");
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ email, password }),
         });
 
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json();
 
         if (!response.ok) {
           showLoginMessage(data.error || "Login failed.");
@@ -80,11 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       showSignupMessage("");
 
-      const first_name = firstNameInput?.value.trim();
-      const last_name = lastNameInput?.value.trim();
-      const email = emailInput?.value.trim();
-      const password = passwordInput?.value.trim();
-      const confirmPassword = confirmPasswordInput?.value.trim();
+      const first_name = firstNameInput.value.trim();
+      const last_name = lastNameInput.value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      const confirmPassword = confirmPasswordInput.value.trim();
 
       if (!first_name || !last_name || !email || !password || !confirmPassword) {
         showSignupMessage("Please fill out all fields.");
@@ -103,10 +103,11 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ first_name, last_name, email, password }),
         });
 
-        const data = await response.json().catch(() => null);
-
-        if (!data) {
-          console.error("Could not parse JSON from /auth/signup");
+        let data;
+        try {
+          data = await response.json();
+        } catch (err) {
+          console.error("Could not parse JSON from /auth/signup", err);
           showSignupMessage("Unexpected server response.");
           return;
         }
@@ -144,7 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function setupAutocomplete(inputId, suggestionId, onSelect) {
       const input = document.getElementById(inputId);
       const suggestions = document.getElementById(suggestionId);
-
       if (!input || !suggestions) return;
 
       input.addEventListener("input", () => {
@@ -164,9 +164,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         matches.forEach((airport) => {
           const li = document.createElement("li");
-          li.textContent = `${airport.name} (${airport.code})`;
+          li.textContent = airport.name;
           li.addEventListener("click", () => {
-            input.value = `${airport.name} (${airport.code})`;
+            input.value = airport.name;
             suggestions.style.display = "none";
             onSelect(airport);
           });
@@ -198,37 +198,49 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // ✅ Store using the SAME keys your calendar page reads
-        localStorage.setItem("fromAirport", selectedOrigin.code);
-        localStorage.setItem("toAirport", selectedDestination.code);
-
-        // Optional: store full objects too
-        localStorage.setItem("originObj", JSON.stringify(selectedOrigin));
-        localStorage.setItem("destinationObj", JSON.stringify(selectedDestination));
+        // Store route (pick ONE naming scheme and keep it consistent everywhere)
+        localStorage.setItem("origin", JSON.stringify(selectedOrigin));
+        localStorage.setItem("destination", JSON.stringify(selectedDestination));
 
         window.location.href = "calendar.html";
       });
     }
   }
 
-  /* ================= CALENDAR PAGE LOGIC ================= */
+  /* ================= CALENDAR PAGE: BUTTON TO BOOKING ================= */
+  // This is YOUR addition so clicking Continue on calendar goes to Booking.html
+  const selectDatesBtn = document.getElementById("selectDatesBtn");
+  if (selectDatesBtn) {
+    selectDatesBtn.addEventListener("click", () => {
+      window.location.href = "Booking.html"; // <-- match your actual filename
+    });
+  }
+
+  /* ================= CALENDAR PAGE LOGIC (flatpickr) ================= */
   const roundTripBtn = document.getElementById("roundTrip");
   const oneWayBtn = document.getElementById("oneWay");
   const searchFlightBtn = document.getElementById("searchFlights");
   const routeDisplay = document.getElementById("selectedRoute");
   const calendarContainer = document.getElementById("calendarContainer");
 
-  let tripType = "round"; // default
+  let tripType = "round";
 
-  // LOAD ROUTE FROM STORAGE
-  const from = localStorage.getItem("fromAirport");
-  const to = localStorage.getItem("toAirport");
+  // NOTE: Your route storage keys must match what you set above.
+  // You currently store "origin" and "destination" as JSON objects.
+  const origin = localStorage.getItem("origin");
+  const destination = localStorage.getItem("destination");
 
-  if (from && to && routeDisplay) {
-    routeDisplay.value = `${from} → ${to}`;
+  if (origin && destination && routeDisplay) {
+    try {
+      const o = JSON.parse(origin);
+      const d = JSON.parse(destination);
+      routeDisplay.value = `${o.code} → ${d.code}`;
+    } catch (e) {
+      // fallback if it's not JSON
+      routeDisplay.value = `${origin} → ${destination}`;
+    }
   }
 
-  // Only set up Flatpickr if on calendar page AND flatpickr exists
   if (calendarContainer && typeof flatpickr !== "undefined") {
     const fp = flatpickr(calendarContainer, {
       mode: "range",
@@ -252,7 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
       },
     });
 
-    // TRIP TYPE TOGGLE
     roundTripBtn?.addEventListener("click", () => {
       tripType = "round";
       roundTripBtn.classList.add("active");
@@ -281,7 +292,6 @@ document.addEventListener("DOMContentLoaded", () => {
       updateSearchButton();
     });
 
-    // SEARCH BUTTON LOGIC
     searchFlightBtn?.addEventListener("click", () => {
       const depart = localStorage.getItem("departureDate");
       const ret = localStorage.getItem("returnDate");
@@ -296,26 +306,34 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      window.location.href = "flights.html";
+      // If you don’t have flights.html, change this to Booking.html or wherever you go next
+      window.location.href = "Booking.html";
     });
 
     function updateSearchButton() {
       const depart = localStorage.getItem("departureDate");
       const ret = localStorage.getItem("returnDate");
 
-      if ((tripType === "one" && depart) || (tripType === "round" && depart && ret)) {
-        searchFlightBtn.disabled = false;
-        searchFlightBtn.classList.remove("disabled");
+      if (
+        (tripType === "one" && depart) ||
+        (tripType === "round" && depart && ret)
+      ) {
+        if (searchFlightBtn) {
+          searchFlightBtn.disabled = false;
+          searchFlightBtn.classList.remove("disabled");
+        }
       } else {
-        searchFlightBtn.disabled = true;
-        searchFlightBtn.classList.add("disabled");
+        if (searchFlightBtn) {
+          searchFlightBtn.disabled = true;
+          searchFlightBtn.classList.add("disabled");
+        }
       }
     }
 
     updateSearchButton();
   }
 
-  /* ================= AI ASSISTANT UI (Home Only) ================= */
+  /* ================= AI ASSISTANT UI (HOME ONLY) ================= */
   const aiButton = document.getElementById("ai-button");
   const aiBox = document.getElementById("ai-box");
   const aiClose = document.getElementById("ai-close");
@@ -332,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
       aiBox.classList.add("hidden");
     });
 
-    function sendAiMessage() {
+    aiSend.addEventListener("click", () => {
       const text = aiInput.value.trim();
       if (!text) return;
 
@@ -348,20 +366,10 @@ document.addEventListener("DOMContentLoaded", () => {
       aiMessages.appendChild(reply);
 
       aiMessages.scrollTop = aiMessages.scrollHeight;
-    }
-
-    aiSend.addEventListener("click", sendAiMessage);
+    });
 
     aiInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendAiMessage();
-    });
-  }
-
-  /* ================= OPTIONAL: OTHER BUTTON NAV ================= */
-  const selectDatesBtn = document.getElementById("selectDatesBtn");
-  if (selectDatesBtn) {
-    selectDatesBtn.addEventListener("click", () => {
-      window.location.href = "Booking.html";
+      if (e.key === "Enter") aiSend.click();
     });
   }
 });
