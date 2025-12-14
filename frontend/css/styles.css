@@ -343,8 +343,6 @@ body {
   gap: 20px;
 }
 
-
-
 /* Search Flights button */
 #searchFlights {
   bottom: 20px;
@@ -384,6 +382,10 @@ body {
   border: 1px solid #ccc;
   background: white;
   cursor: pointer;
+}
+
+.trip-type button:hover {
+  background: #8a8a8a;
 }
 
 .trip-type .active {
