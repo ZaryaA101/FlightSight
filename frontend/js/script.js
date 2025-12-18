@@ -1,5 +1,29 @@
+<<<<<<< HEAD
+=======
+document.addEventListener("DOMContentLoaded", function() {
+  const searchBtn = document.querySelector(".search-btn");
+  if (searchBtn) {
+    searchBtn.addEventListener("click", function() {
+      window.location.href = "flightRoute.html";
+    });
+  }
+
+  const continueBtn = document.querySelector(".continue-btn");
+  if (continueBtn) {
+    continueBtn.addEventListener("click", function() {
+      window.location.href = "calendar.html";
+    });
+  }
+
+  const selectDatesBtn = document.getElementById("selectDatesBtn");
+  if (selectDatesBtn) {
+    selectDatesBtn.addEventListener("click", function () {
+      window.location.href = "Booking.html";
+    });
+  }
+>>>>>>> c4552bc00d4164c8242cee89fa7fe33aae5a02bf
 document.addEventListener("DOMContentLoaded", () => {
-  /*   GLOBAL NAVIGATION (from script.js) */
+  /* ================= GLOBAL NAVIGATION ================= */
   const searchBtn = document.querySelector(".search-btn");
   if (searchBtn) {
     searchBtn.addEventListener("click", () => {
@@ -18,9 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!messageBox) return;
       messageBox.textContent = text;
       messageBox.classList.remove("error", "success");
-      if (text) {
-        messageBox.classList.add(type);
-      }
+      if (text) messageBox.classList.add(type);
     }
 
     loginForm.addEventListener("submit", async (event) => {
@@ -52,7 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
         showLoginMessage("Login successful. Redirecting…", "success");
 
         setTimeout(() => {
-          // change this if your main page has a different name
           window.location.href = "homePage.html";
         }, 600);
       } catch (err) {
@@ -62,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ================= SIGHUP PAGE LOGIC ================= */
+  /* ================= SIGNUP PAGE LOGIC ================= */
   const signupForm = document.getElementById("signup-form");
   if (signupForm) {
     const firstNameInput = document.getElementById("firstName");
@@ -76,9 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!messageBox) return;
       messageBox.textContent = text;
       messageBox.classList.remove("error", "success");
-      if (text) {
-        messageBox.classList.add(type);
-      }
+      if (text) messageBox.classList.add(type);
     }
 
     signupForm.addEventListener("submit", async (event) => {
@@ -139,10 +158,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const airportElements = document.querySelectorAll("#airportList li");
 
   if (airportElements.length) {
-
-    const airports = Array.from(airportElements).map(li => ({
+    const airports = Array.from(airportElements).map((li) => ({
       code: li.dataset.code,
-      name: li.textContent
+      name: li.textContent,
     }));
 
     let selectedOrigin = null;
@@ -151,6 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function setupAutocomplete(inputId, suggestionId, onSelect) {
       const input = document.getElementById(inputId);
       const suggestions = document.getElementById(suggestionId);
+      if (!input || !suggestions) return;
 
       input.addEventListener("input", () => {
         const value = input.value.toLowerCase();
@@ -161,12 +180,13 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const matches = airports.filter(a =>
-          a.name.toLowerCase().includes(value) ||
-          a.code.toLowerCase().includes(value)
+        const matches = airports.filter(
+          (a) =>
+            a.name.toLowerCase().includes(value) ||
+            a.code.toLowerCase().includes(value)
         );
 
-        matches.forEach(airport => {
+        matches.forEach((airport) => {
           const li = document.createElement("li");
           li.textContent = airport.name;
           li.addEventListener("click", () => {
@@ -180,18 +200,18 @@ document.addEventListener("DOMContentLoaded", () => {
         suggestions.style.display = matches.length ? "block" : "none";
       });
 
-      document.addEventListener("click", e => {
+      document.addEventListener("click", (e) => {
         if (!input.contains(e.target) && !suggestions.contains(e.target)) {
           suggestions.style.display = "none";
         }
       });
     }
 
-    setupAutocomplete("origin", "originSuggestions", airport => {
+    setupAutocomplete("origin", "originSuggestions", (airport) => {
       selectedOrigin = airport;
     });
 
-    setupAutocomplete("destination", "destinationSuggestions", airport => {
+    setupAutocomplete("destination", "destinationSuggestions", (airport) => {
       selectedDestination = airport;
     });
 
@@ -202,6 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        // Store route (pick ONE naming scheme and keep it consistent everywhere)
         localStorage.setItem("origin", JSON.stringify(selectedOrigin));
         localStorage.setItem("destination", JSON.stringify(selectedDestination));
 
@@ -210,113 +231,178 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ================= CALENDAR PAGE LOGIC ================= */
-  const dateInput = document.getElementById("dateRange");
+  /* ================= CALENDAR PAGE: BUTTON TO BOOKING ================= */
+  // This is YOUR addition so clicking Continue on calendar goes to Booking.html
+  const selectDatesBtn = document.getElementById("selectDatesBtn");
+  if (selectDatesBtn) {
+    selectDatesBtn.addEventListener("click", () => {
+      window.location.href = "Booking.html"; // <-- match your actual filename
+    });
+  }
+
+  /* ================= CALENDAR PAGE LOGIC (flatpickr) ================= */
   const roundTripBtn = document.getElementById("roundTrip");
   const oneWayBtn = document.getElementById("oneWay");
   const searchFlightBtn = document.getElementById("searchFlights");
   const routeDisplay = document.getElementById("selectedRoute");
-
-  let tripType = "round"; // default
-
-  // ===== LOAD ROUTE FROM STORAGE =====
-  const from = localStorage.getItem("fromAirport");
-  const to = localStorage.getItem("toAirport");
-
-  if (from && to && routeDisplay) {
-    routeDisplay.value = `${from} → ${to}`;
-  }
-
-  // ===== FLATPICKR INIT =====
-  // Target the new container div instead of input
   const calendarContainer = document.getElementById("calendarContainer");
 
-  const fp = flatpickr(calendarContainer, {
-    mode: "range",
-    minDate: "today",
-    dateFormat: "M d, Y",
-    inline: true,        // always show calendar
-    allowInput: false,   // disable typing
-    showMonths: window.innerWidth < 768 ? 1 : 2,     // show two months side by side
+  let tripType = "round";
 
-    onChange(selectedDates) {
-      if (tripType === "one" && selectedDates.length >= 1) {
-        localStorage.setItem("departureDate", selectedDates[0].toISOString());
-        localStorage.removeItem("returnDate");
-      }
+  // NOTE: Your route storage keys must match what you set above.
+  // You currently store "origin" and "destination" as JSON objects.
+  const origin = localStorage.getItem("origin");
+  const destination = localStorage.getItem("destination");
 
-      if (tripType === "round" && selectedDates.length === 2) {
-        localStorage.setItem("departureDate", selectedDates[0].toISOString());
-        localStorage.setItem("returnDate", selectedDates[1].toISOString());
-      }
-
-      updateSearchButton();
-    }
-  });
-
-  // ===== TRIP TYPE TOGGLE =====
-  roundTripBtn?.addEventListener("click", () => {
-    tripType = "round";
-    roundTripBtn.classList.add("active");
-    oneWayBtn.classList.remove("active");
-
-    fp.set("mode", "range");
-    fp.clear();
-
-    localStorage.removeItem("departureDate");
-    localStorage.removeItem("returnDate");
-
-    updateSearchButton();
-  });
-
-  oneWayBtn?.addEventListener("click", () => {
-    tripType = "one";
-    oneWayBtn.classList.add("active");
-    roundTripBtn.classList.remove("active");
-
-    fp.set("mode", "single");
-    fp.clear();
-
-    localStorage.removeItem("departureDate");
-    localStorage.removeItem("returnDate");
-
-    updateSearchButton();
-  });
-
-  // ===== SEARCH BUTTON LOGIC =====
-  searchBtn?.addEventListener("click", () => {
-    const depart = localStorage.getItem("departureDate");
-    const ret = localStorage.getItem("returnDate");
-
-    if (!depart) {
-      alert("Please select a departure date.");
-      return;
-    }
-
-    if (tripType === "round" && !ret) {
-      alert("Please select a return date.");
-      return;
-    }
-
-    // Navigate to flights page
-    window.location.href = "flights.html";
-  });
-
-  // ===== ENABLE / DISABLE SEARCH BUTTON =====
-  function updateSearchButton() {
-    const depart = localStorage.getItem("departureDate");
-    const ret = localStorage.getItem("returnDate");
-
-    if (
-      (tripType === "one" && depart) ||
-      (tripType === "round" && depart && ret)
-    ) {
-      searchBtn.disabled = false;
-      searchBtn.classList.remove("disabled");
-    } else {
-      searchBtn.disabled = true;
-      searchBtn.classList.add("disabled");
+  if (origin && destination && routeDisplay) {
+    try {
+      const o = JSON.parse(origin);
+      const d = JSON.parse(destination);
+      routeDisplay.value = `${o.code} → ${d.code}`;
+    } catch (e) {
+      // fallback if it's not JSON
+      routeDisplay.value = `${origin} → ${destination}`;
     }
   }
 
+  if (calendarContainer && typeof flatpickr !== "undefined") {
+    const fp = flatpickr(calendarContainer, {
+      mode: "range",
+      minDate: "today",
+      dateFormat: "M d, Y",
+      inline: true,
+      allowInput: false,
+      showMonths: window.innerWidth < 768 ? 1 : 2,
+      onChange(selectedDates) {
+        if (tripType === "one" && selectedDates.length >= 1) {
+          localStorage.setItem("departureDate", selectedDates[0].toISOString());
+          localStorage.removeItem("returnDate");
+        }
+
+        if (tripType === "round" && selectedDates.length === 2) {
+          localStorage.setItem("departureDate", selectedDates[0].toISOString());
+          localStorage.setItem("returnDate", selectedDates[1].toISOString());
+        }
+
+        updateSearchButton();
+      },
+    });
+
+    roundTripBtn?.addEventListener("click", () => {
+      tripType = "round";
+      roundTripBtn.classList.add("active");
+      oneWayBtn?.classList.remove("active");
+
+      fp.set("mode", "range");
+      fp.clear();
+
+      localStorage.removeItem("departureDate");
+      localStorage.removeItem("returnDate");
+
+      updateSearchButton();
+    });
+
+    oneWayBtn?.addEventListener("click", () => {
+      tripType = "one";
+      oneWayBtn.classList.add("active");
+      roundTripBtn?.classList.remove("active");
+
+      fp.set("mode", "single");
+      fp.clear();
+
+      localStorage.removeItem("departureDate");
+      localStorage.removeItem("returnDate");
+
+      updateSearchButton();
+    });
+
+    searchFlightBtn?.addEventListener("click", () => {
+      const depart = localStorage.getItem("departureDate");
+      const ret = localStorage.getItem("returnDate");
+
+      if (!depart) {
+        alert("Please select a departure date.");
+        return;
+      }
+
+      if (tripType === "round" && !ret) {
+        alert("Please select a return date.");
+        return;
+      }
+
+      // If you don’t have flights.html, change this to Booking.html or wherever you go next
+      window.location.href = "Booking.html";
+    });
+
+    function updateSearchButton() {
+      const depart = localStorage.getItem("departureDate");
+      const ret = localStorage.getItem("returnDate");
+
+      if (
+        (tripType === "one" && depart) ||
+        (tripType === "round" && depart && ret)
+      ) {
+        if (searchFlightBtn) {
+          searchFlightBtn.disabled = false;
+          searchFlightBtn.classList.remove("disabled");
+        }
+      } else {
+        if (searchFlightBtn) {
+          searchFlightBtn.disabled = true;
+          searchFlightBtn.classList.add("disabled");
+        }
+      }
+    }
+
+    updateSearchButton();
+  }
+
+  /* ================= AI ASSISTANT UI (HOME ONLY) ================= */
+  const aiButton = document.getElementById("ai-button");
+  const aiBox = document.getElementById("ai-box");
+  const aiClose = document.getElementById("ai-close");
+  const aiInput = document.getElementById("ai-input");
+  const aiSend = document.getElementById("ai-send");
+  const aiMessages = document.querySelector(".ai-messages");
+
+  if (aiButton && aiBox && aiClose && aiInput && aiSend && aiMessages) {
+    aiButton.addEventListener("click", () => {
+      aiBox.classList.toggle("hidden");
+    });
+
+    aiClose.addEventListener("click", () => {
+      aiBox.classList.add("hidden");
+    });
+
+    aiSend.addEventListener("click", () => {
+      const text = aiInput.value.trim();
+      if (!text) return;
+
+      const userMsg = document.createElement("p");
+      userMsg.textContent = "You: " + text;
+      aiMessages.appendChild(userMsg);
+
+      aiInput.value = "";
+
+      const reply = document.createElement("p");
+      reply.textContent = "Assistant: (I’m not connected yet, but I will be!)";
+      reply.style.opacity = "0.7";
+      aiMessages.appendChild(reply);
+
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+    });
+
+<<<<<<< HEAD
+    aiInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") aiSend.click();
+    });
+  }
+=======
+    aiInput?.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") aiSend.click();
+    });
+    }
+
+
+>>>>>>> c4552bc00d4164c8242cee89fa7fe33aae5a02bf
 });
