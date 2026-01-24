@@ -29,6 +29,9 @@ body {
   background-position: center;
   color: white;
   overflow: hidden;
+
+  display: flex;
+  align-items: center;
 }
 
 .hero-overlay {
@@ -41,7 +44,7 @@ body {
 .hero-content {
   position: relative;
   max-width: 800px;
-  padding: 3.5rem 3.5rem 4rem;
+  padding-inline: 3.5rem;
 }
 
 .hero h1 {
@@ -106,17 +109,16 @@ body {
   align-items: center;
   justify-content: center;
   padding: 2rem 3rem;
-  background: radial-gradient(circle at top, #f9f9f9, #f9f9f9);
+  background: #ffffff;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
-  background-color: #020617;
+  max-width: 760px;
+  background-color: #ffffff;
   border-radius: 1.2rem;
   padding: 2.2rem 2.3rem 2.6rem;
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: none;        
   color: #e5e7eb;
 }
 
@@ -136,19 +138,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top, #2563eb, #0f172a);
-  font-size: 1.2rem;
+  background: white;
+  font-size: 2.3rem;
 }
 
 .logo-title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 2.3rem;
+  color: #000000;
 }
 
 .logo-subtitle {
-  margin: 0.1rem 0 0;
-  font-size: 0.8rem;
-  color: #9ca3af;
+  margin: 0.5rem 0 0;
+  font-size: 1.2rem;
+  color: #000000;
 }
 
 /* Form fields */
@@ -161,11 +164,12 @@ body {
 .field {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.8rem;
+  padding-top: 0.6rem;
+  font-size: 1.0rem;
 }
 
 .field span {
-  color: #e5e7eb;
+  color: #000000;
 }
 
 .field-row {
@@ -177,18 +181,18 @@ body {
 input[type="email"],
 input[type="password"] {
   border-radius: 0.75rem;
-  border: 1px solid #1f2937;
-  background-color: #020617;
+  border: 1px solid #979797;
+  background-color: #e7e7e7;
   padding: 0.7rem 0.85rem;
   color: #e5e7eb;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   outline: none;
   transition: border 0.15s ease, box-shadow 0.15s ease;
 }
 
 input[type="email"]::placeholder,
 input[type="password"]::placeholder {
-  color: #6b7280;
+  color: #000000;
 }
 
 input[type="email"]:focus,
@@ -211,8 +215,8 @@ input[type="password"]:focus {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.78rem;
-  color: #9ca3af;
+  font-size: 1.0rem;
+  color: #000000;
 }
 
 .checkbox input[type="checkbox"] {
@@ -251,8 +255,8 @@ input[type="password"]:focus {
 .auth-text {
   margin-top: 1rem;
   margin-bottom: 1rem;
-  font-size: 0.85rem;
-  color: #9ca3af;
+  font-size: 1.0rem;
+  color: #000000;
 }
 
 /* Divider */
@@ -260,10 +264,11 @@ input[type="password"]:focus {
 .divider {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1.5rem;
   font-size: 0.75rem;
-  color: #6b7280;
-  margin: 0.4rem 0 0.9rem;
+  color: #3d3d3d;
+  margin: 0.4rem 4rem 0.9rem;
+  padding: 24px 0;
 }
 
 .divider::before,
@@ -279,11 +284,11 @@ input[type="password"]:focus {
 .btn-google {
   width: 100%;
   border-radius: 999px;
-  border: 1px solid #1f2937;
-  background-color: #020617;
+  border: 1px solid #979797;
+  background-color: #e7e7e7;
   padding: 0.65rem 1rem;
   font-size: 0.85rem;
-  color: #e5e7eb;
+  color: #000000;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -293,8 +298,8 @@ input[type="password"]:focus {
 }
 
 .btn-google:hover {
-  background-color: #030712;
-  border-color: #374151;
+  background-color: #979797;
+  border-color: #6e7685;
 }
 
 .google-icon {
@@ -310,7 +315,7 @@ input[type="password"]:focus {
 }
 
 .link-small {
-  font-size: 0.78rem;
+  font-size: 1.0rem;
 }
 
 .link:hover,
@@ -335,18 +340,22 @@ input[type="password"]:focus {
 /* Help bubble */
 
 .help-bubble {
-  position: absolute;
-  bottom: 1.8rem;
-  right: 2rem;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  border: none;
-  background: #020617;
-  color: #e5e7eb;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.9);
+  position: fixed;
+  bottom: 26px;
+  right: 26px;
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background: #111827;
+  color: white;
+  font-size: 24px;
+  border: 1px solid #334155;
   cursor: pointer;
-  font-size: 1.05rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+  transition: 0.2s ease;
 }
 
 /* Responsive */
