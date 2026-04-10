@@ -135,11 +135,22 @@
           <div class="col-md-4 mb-4">
             <div class="card">
               <div class="card-body text-center">
+                <h5 class="card-title">Saved Flights</h5>
+                <p class="card-text">
+                  View and manage your saved flights.
+                </p>
+                <a href="/savedFlights.html" class="btn btn-primary">View Saved Flights</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 mb-4">
+            <div class="card">
+              <div class="card-body text-center">
                 <h5 class="card-title">Smart Comparisons</h5>
                 <p class="card-text">
                   Compare saved flights for the same trip and get a recommended airline.
                 </p>
-                <a id="smartComparisonsButton" href="/html/smartComparisons.html" class="btn btn-danger">Compare Flights</a>
+                <a id="smartComparisonsButton" href="/smartComparisons.html" class="btn btn-danger">Compare Flights</a>
               </div>
             </div>
           </div>
@@ -153,7 +164,6 @@
         const btn = document.getElementById('smartComparisonsButton');
         if (btn) {
           btn.addEventListener('click', (event) => {
-            // ensure navigation works even if homepage JS intercepts clicks
             if (!event.defaultPrevented) {
               window.location.href = btn.href;
             }
