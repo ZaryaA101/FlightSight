@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "savedFlights.html";
   });
 
-    document.getElementById("saved-btn").addEventListener("click", function () {
+    document.getElementById("compare-btn").addEventListener("click", function () {
     window.location.href = "smartComparisons.html";
   });
 
