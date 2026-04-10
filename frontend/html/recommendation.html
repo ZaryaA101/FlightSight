@@ -1,0 +1,59 @@
+<!-- RECOMMENDATION CHAT / PROMPT ENGINEER -->
+<section class="reco-card" aria-labelledby="recoTitle">
+  <div class="reco-head">
+    <div>
+      <h2 id="recoTitle">Recommendations</h2>
+      <p>Personalized picks based on your priorities and your saved flights.</p>
+    </div>
+    <button class="btn" id="recoRefreshBtn" type="button">Refresh</button>
+  </div>
+
+  <div class="reco-controls">
+    <div class="reco-control">
+      <div class="reco-label">What matters most?</div>
+      <div class="reco-sliders">
+        <label class="reco-slider">
+          <span>Price</span>
+          <input id="wPrice" type="range" min="0" max="10" value="5" />
+          <strong id="wPriceVal">5</strong>
+        </label>
+
+        <label class="reco-slider">
+          <span>Safety</span>
+          <input id="wSafety" type="range" min="0" max="10" value="7" />
+          <strong id="wSafetyVal">7</strong>
+        </label>
+
+        <label class="reco-slider">
+          <span>Environmental</span>
+          <input id="wEnv" type="range" min="0" max="10" value="4" />
+          <strong id="wEnvVal">4</strong>
+        </label>
+
+        <label class="reco-slider">
+          <span>Seat availability</span>
+          <input id="wSeat" type="range" min="0" max="10" value="3" />
+          <strong id="wSeatVal">3</strong>
+        </label>
+      </div>
+    </div>
+
+    <div class="reco-control">
+      <div class="reco-label">Notes (optional)</div>
+      <input
+        id="recoNotes"
+        class="reco-notes"
+        type="text"
+        placeholder="e.g., prefer lower price under $500, avoid limited seats"
+      />
+      <div class="reco-subactions">
+        <button class="btn primary" id="recoSavePrefsBtn" type="button">Save preferences</button>
+        <button class="btn delete" id="recoClearPrefsBtn" type="button">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="recoMessage" class="reco-message" role="status" aria-live="polite"></div>
+
+  <div class="reco-grid" id="recoGrid"></div>
+</section>

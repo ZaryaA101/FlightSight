@@ -25,8 +25,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "frontend")));
 // Also serve frontend/html/ so /calendar.html works (no /html/ prefix needed)
 app.use(express.static(path.join(__dirname, "frontend", "html")));
-// Serve frontend/html/ at /html/ so /html/flightRoute.html and /html/smartComparisons.html work
-app.use("/html", express.static(path.join(__dirname, "frontend", "html")));
 // Expose backend data files at /data/ so frontend fetch("/data/...") works
 app.use("/data", express.static(path.join(__dirname, "backend", "data")));
 
