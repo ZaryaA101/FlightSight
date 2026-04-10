@@ -139,7 +139,7 @@
                 <p class="card-text">
                   Compare saved flights for the same trip and get a recommended airline.
                 </p>
-                <a href="/html/smartComparisons.html" class="btn btn-primary">Compare Flights</a>
+                <a id="smartComparisonsButton" href="/html/smartComparisons.html" class="btn btn-danger">Compare Flights</a>
               </div>
             </div>
           </div>
@@ -148,5 +148,18 @@
     </div>
 
     <script src="../js/login_signup.js" defer></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('smartComparisonsButton');
+        if (btn) {
+          btn.addEventListener('click', (event) => {
+            // ensure navigation works even if homepage JS intercepts clicks
+            if (!event.defaultPrevented) {
+              window.location.href = btn.href;
+            }
+          });
+        }
+      });
+    </script>
   </body>
 </html>
