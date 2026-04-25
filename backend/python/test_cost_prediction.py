@@ -215,13 +215,11 @@ def seat_label(avg_seats):
     else:
         return "Very limited"
 
-
-# ================= TEST =================
 if __name__ == "__main__":
 
-    origin = "LAX"
-    dest = "JFK"
-    date = "2026-04-15"
+    origin = "ATL"
+    dest = "DFW"
+    date = "2026-04-24"
 
     results = predict_prices(origin, dest, date)
 

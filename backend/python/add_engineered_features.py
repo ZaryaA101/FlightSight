@@ -10,7 +10,6 @@ This script adds engineered features to the flight dataset, including:
 - Month, day of week, and weekend flag
 """
 
-
 import pandas as pd
 import numpy as np
 import re
@@ -20,7 +19,6 @@ INPUT_FILE = "backend/data/flights_sample.csv"
 OUTPUT_FILE = "backend/data/flights_engineered.csv"
 
 # ================= LOAD DATA =================
-print("Loading dataset...")
 df = pd.read_csv(INPUT_FILE, low_memory=False)
 
 # ================= HELPER FUNCTIONS =================

@@ -3,6 +3,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const API_BASE = "http://localhost:3000";
   const userEmail = localStorage.getItem("userEmail") || "anonymous";
 
+  // Clear any previous search data when arriving at the home page
+  localStorage.removeItem("origin");
+  localStorage.removeItem("destination");
+  localStorage.removeItem("selectedFlight");
+
   function setBadgeCount(count) {
     const badge = document.getElementById("priceAlertBadgeHome");
     if (!badge) return;

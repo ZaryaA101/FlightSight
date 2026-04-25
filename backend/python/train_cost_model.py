@@ -116,8 +116,19 @@ print(f"MAE  (avg error): ${mae:.2f}")
 print(f"RMSE (std error): ${rmse:.2f}")
 print(f"R²   (fit score): {r2:.4f}")
 
+"""
+Output:
+
+Model Performance:
+MAE  (avg error): $72.36
+RMSE (std error): $115.79
+R²   (fit score): 0.6555
+"""
+
 # ================= SAVE =================
 print("Saving model...")
 joblib.dump(pipeline, MODEL_FILE)
 
 print(f"Model saved as: {MODEL_FILE}")
+
+

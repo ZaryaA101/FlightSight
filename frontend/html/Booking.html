@@ -1,38 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Your Booking - Flight Sight</title>
-    <link rel="stylesheet" href="../css/booking.css">
-</head>
-<body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-container">
-            <div class="header-content">
-                <div class="header-left">
-                    <button class="back-button" aria-label="Go back">
-                        <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h1>Complete Your Booking</h1>
-                        <p class="flight-info">United Airlines • Flight UA 1234</p>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <button class="brand-button">
-                        <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                        Flight Sight
-                    </button>
-                </div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booking | Flight Sight</title>
+
+    <link rel="stylesheet" href="../css/booking.css" />
+  </head>
+
+  <body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+      <div class="container navbar-inner">
+        <div class="logo">✈️ Flight Sight</div>
+        <nav>
+          <a href="homePage.html">Home</a>
+          <a href="#">My Trips</a>
+          <a href="#">Saved Flights</a>
+          <button class="signout" onclick="location.href = 'login.html'">
+            Sign Out
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <div class="container booking-shell">
+        <div class="header-top">
+          <a href="homePage.html" class="back-link">←</a>
+          <div class="page-title">
+            <h1>Complete Your Booking</h1>
+            <p>
+              View flight details and add additional services to finalize your booking (flight cost).
+            </p>
+          </div>
         </div>
-    </div>
 
     <!-- Main Content -->
     <div class="main-container">
