@@ -69,13 +69,14 @@
                             </div>
                         </div>
                         <div class="flight-info-details">
-                            <div class="info-row">
-                                <p class="info-label">Aircraft</p>
-                                <p class="info-value">Boeing 737-800</p>
+                            <div class="info-row" id="aircraftRow">
+                                <p class="info-label">Airline</p>
+                                <p class="info-value" id="aircraftValue">—</p>
                             </div>
                             <div class="info-row">
                                 <p class="info-label">Travel Date</p>
                                 <p class="info-value">Mar 15, 2026</p>
+                                <p class="info-value" id="travelDateValue">—</p>
                             </div>
                         </div>
                     </div>
@@ -98,7 +99,7 @@
                                 <span class="availability-percent">68%</span>
                             </div>
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: 68%;"></div>
+                                <div class="progress-fill" id="seatProgressFill" style="width: 68%;"></div>
                             </div>
                         </div>
                         <div class="seat-classes">
@@ -234,30 +235,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="seat-option">
-                            <div class="seat-option-content">
-                                <div class="seat-option-info">
-                                    <p class="seat-option-title">Premium Economy</p>
-                                    <p class="seat-option-desc">Extra legroom and enhanced services</p>
-                                </div>
-                                <div class="seat-option-price">
-                                    <p class="price-value upgrade">+$135</p>
-                                    <p class="price-label">Per person</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="seat-option">
-                            <div class="seat-option-content">
-                                <div class="seat-option-info">
-                                    <p class="seat-option-title">Business Class</p>
-                                    <p class="seat-option-desc">Lie-flat seats, premium meals, priority boarding</p>
-                                </div>
-                                <div class="seat-option-price">
-                                    <p class="price-value upgrade">+$360</p>
-                                    <p class="price-label">Per person</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -373,15 +350,15 @@
                         <div class="card-content">
                             <div class="price-row base">
                                 <span class="price-label">Base Fare</span>
-                                <span class="price-amount">$450</span>
+                                <span class="price-amount" id="baseFareAmount">$450</span>
                             </div>
                             <div class="price-row">
                                 <span class="price-label-sm">Taxes & Fees</span>
-                                <span class="price-amount-sm">$54</span>
+                                <span class="price-amount-sm" id="taxAmount">$54</span>
                             </div>
                             <div class="price-row total">
                                 <span class="price-total-label">Total</span>
-                                <span class="price-total-amount">$504</span>
+                                <span class="price-total-amount" id="totalAmount">$504</span>
                             </div>
                             <p class="price-note">Per person</p>
                         </div>
@@ -398,8 +375,8 @@
                             </h2>
                         </div>
                         <div class="card-content">
-                            <div class="info-value">92%</div>
-                            <p class="info-desc">Excellent safety record</p>
+                            <div class="info-value" id="safetyValue">92%</div>
+                            <p class="info-desc" id="safetyNote">Excellent safety record</p>
                         </div>
                     </div>
 
