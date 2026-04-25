@@ -241,14 +241,16 @@ function applyBookingDataToUI(route, flight, dates) {
     if (arrivalSub) arrivalSub.textContent = flight.arrival.city;
 
     // Aircraft
-    const aircraftValue = document.querySelector('.info-row .info-value');
-    if (aircraftValue) aircraftValue.textContent = flight.aircraft;
+    const aircraftEl = document.getElementById("aircraftValue");
+    if (aircraftEl) aircraftEl.textContent = flight.airline || "Unknown";
 
     // Travel Date
-    const dateValue = document.querySelector('.info-row:last-child .info-value');
-    if (dateValue && dates.departure) {
-      const date = new Date(dates.departure);
-      dateValue.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const travelDateEl = document.getElementById("travelDateValue");
+    if (travelDateEl && flight.departureDate) {
+      const date = new Date(flight.departureDate);
+      travelDateEl.textContent = date.toLocaleDateString("en-US", {
+        month: "short", day: "numeric", year: "numeric"
+      });
     }
   }
 
@@ -337,9 +339,50 @@ function applySelectedFlightToBookingUI(flight) {
     if (valueNode) valueNode.textContent = flight.departureDate;
   }
 
+  // Airline
+  const aircraftEl = document.getElementById("aircraftValue");
+  if (aircraftEl) aircraftEl.textContent = flight.airline || "Unknown";
+
+  // Travel Date
+  const travelDateEl = document.getElementById("travelDateValue");
+  if (travelDateEl && flight.departureDate) {
+    const date = new Date(flight.departureDate);
+    travelDateEl.textContent = date.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric"
+    });
+  }
+
   const baseFareNode = document.querySelector(".price-row.base .price-amount");
   if (baseFareNode && typeof flight.totalFare === "number") {
     baseFareNode.textContent = `$${flight.totalFare.toFixed(2)}`;
+  }
+
+  // Price breakdown
+  const fare = Number(flight.totalFare) || 0;
+  const tax = Math.round(fare * 0.12);
+  const total = fare + tax;
+
+  const baseFareEl = document.getElementById("baseFareAmount");
+  const taxEl = document.getElementById("taxAmount");
+  const totalEl = document.getElementById("totalAmount");
+
+  if (baseFareEl) baseFareEl.textContent = `$${fare.toFixed(2)}`;
+  if (taxEl) taxEl.textContent = `$${tax.toFixed(2)}`;
+  if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+
+  // Safety rating (derived from risk score same way as flightResults.js)
+  const risk = Number(flight.delayCancellationRiskScore);
+  const safeRisk = Number.isFinite(risk) ? Math.max(0, Math.min(100, risk)) : 50;
+  const safety = Math.max(40, 100 - safeRisk);
+
+  const safetyEl = document.getElementById("safetyValue");
+  const safetyNoteEl = document.getElementById("safetyNote");
+  if (safetyEl) safetyEl.textContent = `${safety}%`;
+  if (safetyNoteEl) {
+    safetyNoteEl.textContent =
+      safety >= 90 ? "Excellent safety record" :
+      safety >= 75 ? "Good safety record" :
+      "Moderate safety record";
   }
 }
 

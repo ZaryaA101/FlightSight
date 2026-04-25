@@ -79,9 +79,9 @@ def get_route_weather(origin, dest, date):
 
 if __name__ == "__main__":
 
-    origin = "LAX"
-    dest = "JFK"
-    date = "2026-06-13"   #  works (past or future)
+    origin = "ATL"
+    dest = "IAD"
+    date = "2026-04-25"
 
     weather = get_route_weather(origin, dest, date)
 
