@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flight Results</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/flightResults.css" />
+</head>
+
+<body>
+  <header class="results-header">
+    <a href="calendar.html" class="back-link" aria-label="Back">←</a>
+
+    <div class="header-title">
+      <h1 id="routeText">—</h1>
+      <div class="header-sub">
+        <span class="muted" id="dateRange">—</span>
+        <span class="pill" id="flightCountPill">0 flights</span>
+      </div>
+    </div>
+
+    <button class="ghost-btn" type="button" id="flightSightBtn">
+      ✈︎ Flight Sight
+    </button>
+  </header>
+
+  <section class="tabs-row">
+    <div class="tabs" role="tablist" aria-label="Results views">
+      <button class="tab active" data-view="filters" role="tab" aria-selected="true">Filter Options</button>
+      <button class="tab" data-view="map" role="tab" aria-selected="false">Map View</button>
+      <button class="tab" data-view="opp" role="tab" aria-selected="false">Opportunity Cost</button>
+      <button class="tab" data-view="rec" role="tab" aria-selected="false">Recommendation</button>
+    </div>
+  </section>
+
+  <section class="filterbar" id="filterbar">
+    <div class="filterbar-inner">
+      <div class="filter-item">
+        <div class="filter-label">Price Range: <span id="priceRangeLabel">$0 – $1000</span></div>
+        <input id="priceRange" type="range" min="0" max="1000" value="1000" step="10" />
+      </div>
+
+      <div class="filter-item">
+        <div class="filter-label">Stops</div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="stops0" checked /> Nonstop</label>
+          <label class="check"><input type="checkbox" id="stops1" checked /> 1 stop</label>
+          <label class="check"><input type="checkbox" id="stops2" checked /> 2 stops</label>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <div class="filter-label">Min Safety Rating: <span id="minSafetyLabel">0%</span></div>
+        <input id="minSafety" type="range" min="0" max="100" value="0" step="1" />
+      </div>
+
+      <div class="filter-item">
+        <div class="filter-label">Sort By</div>
+        <select id="sortBy">
+          <option value="price_asc">Price (Low to High)</option>
+          <option value="safety_desc">Safety Rating</option>
+          <option value="co2_asc">CO₂ Emissions</option>
+          <option value="duration_asc">Duration</option>
+        </select>
+      </div>
+
+      <button class="btn small" id="clearFiltersBtn" type="button">Clear</button>
+    </div>
+  </section>
+
+  <section class="results-layout">
+    <aside class="stats-card">
+      <h3>Quick Stats</h3>
+      <div class="stat"><span>Avg Price</span><strong id="avgPrice">—</strong></div>
+      <div class="stat"><span>Lowest Price</span><strong id="lowPrice">—</strong></div>
+      <div class="stat"><span>Best Safety</span><strong id="bestSafety">—</strong></div>
+      <div class="stat"><span>Lowest CO₂</span><strong id="lowCo2">—</strong></div>
+    </aside>
+
+    <main class="results-main">
+      <section class="panel hidden" id="mapPanel">
+        <div class="panel-card map-card">
+          <h2 class="map-title">Route Map View</h2>
+          <p class="muted map-subtitle">Visualize your flight route and alternatives</p>
+
+          <div class="route-map-shell">
+            <svg id="routeMapSvg" class="route-map-svg" viewBox="0 0 900 430" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="mapBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#0b1639"></stop>
+                  <stop offset="100%" stop-color="#2442a5"></stop>
+                </linearGradient>
+
+                <pattern id="gridPattern" width="45" height="45" patternUnits="userSpaceOnUse">
+                  <path d="M 45 0 L 0 0 0 45" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"></path>
+                </pattern>
+              </defs>
+
+              <rect x="0" y="0" width="900" height="430" rx="18" fill="url(#mapBg)"></rect>
+              <rect x="0" y="0" width="900" height="430" rx="18" fill="url(#gridPattern)"></rect>
+
+              <ellipse cx="170" cy="120" rx="120" ry="92" fill="rgba(45, 212, 191, 0.18)"></ellipse>
+              <ellipse cx="240" cy="300" rx="64" ry="98" fill="rgba(45, 212, 191, 0.16)"></ellipse>
+              <ellipse cx="430" cy="120" rx="58" ry="54" fill="rgba(45, 212, 191, 0.18)"></ellipse>
+              <ellipse cx="460" cy="235" rx="80" ry="120" fill="rgba(45, 212, 191, 0.16)"></ellipse>
+              <ellipse cx="655" cy="145" rx="150" ry="110" fill="rgba(45, 212, 191, 0.18)"></ellipse>
+              <ellipse cx="770" cy="320" rx="58" ry="40" fill="rgba(45, 212, 191, 0.16)"></ellipse>
+
+              <path
+                id="routeCurve"
+                d="M 240 120 Q 470 70 780 135"
+                fill="none"
+                stroke="#f5c84c"
+                stroke-width="4"
+                stroke-linecap="round"
+                stroke-dasharray="9 9"
+              ></path>
+
+              <circle id="routePlaneDot" r="7" fill="#ef4444"></circle>
+
+              <g id="originMarkerGroup">
+                <circle id="originPulse" cx="240" cy="120" r="17" fill="rgba(34,197,94,0.20)"></circle>
+                <circle id="originMarker" cx="240" cy="120" r="12" fill="#22c55e"></circle>
+                <circle cx="240" cy="120" r="4" fill="#ffffff"></circle>
+                <text id="originLabel" x="208" y="100">Origin</text>
+              </g>
+
+              <g id="destinationMarkerGroup">
+                <circle id="destinationPulse" cx="780" cy="135" r="17" fill="rgba(59,130,246,0.20)"></circle>
+                <circle id="destinationMarker" cx="780" cy="135" r="12" fill="#3b82f6"></circle>
+                <circle cx="780" cy="135" r="4" fill="#ffffff"></circle>
+                <text id="destinationLabel" x="744" y="114">Destination</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="route-locations">
+            <div class="route-location-card origin-card">
+              <div class="route-location-label">Origin</div>
+              <div class="route-location-name" id="mapOriginName">—</div>
+              <div class="route-location-meta" id="mapOriginCode">—</div>
+              <div class="route-location-coords" id="mapOriginCoords">—</div>
+            </div>
+
+            <div class="route-location-card destination-card">
+              <div class="route-location-label">Destination</div>
+              <div class="route-location-name" id="mapDestinationName">—</div>
+              <div class="route-location-meta" id="mapDestinationCode">—</div>
+              <div class="route-location-coords" id="mapDestinationCoords">—</div>
+            </div>
+          </div>
+
+          <div class="route-summary-grid">
+            <div class="route-summary-item">
+              <div class="route-summary-label">Distance</div>
+              <div class="route-summary-value" id="mapDistance">—</div>
+            </div>
+
+            <div class="route-summary-item">
+              <div class="route-summary-label">Est. Flight Time</div>
+              <div class="route-summary-value" id="mapFlightTime">—</div>
+            </div>
+
+            <div class="route-summary-item">
+              <div class="route-summary-label">Direction</div>
+              <div class="route-summary-value" id="mapDirection">—</div>
+            </div>
+          </div>
+
+          <div class="route-note" id="routeNote">
+            <strong>Route Visualization:</strong>
+            The animated path shows your direct flight route from
+            <span id="routeNoteOrigin">origin</span> to
+            <span id="routeNoteDestination">destination</span>.
+            Green marker indicates origin, blue marker indicates destination.
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="listPanel">
+        <h2 class="section-title">Available Flights</h2>
+        <div id="flightList" class="flight-list"></div>
+      </section>
+
+      <section class="panel hidden" id="oppPanel">
+        <div class="panel-card">
+          <h2 class="section-title">Compare Flights (Select up to 3)</h2>
+
+          <div class="compare-cards" id="compareCards">
+            <div class="compare-card empty" data-slot="0">
+              <div class="x hidden" aria-hidden="true">×</div>
+              <div class="plus">+</div>
+              <div class="muted">Select a flight to compare</div>
+            </div>
+            <div class="compare-card empty" data-slot="1">
+              <div class="x hidden" aria-hidden="true">×</div>
+              <div class="plus">+</div>
+              <div class="muted">Select a flight to compare</div>
+            </div>
+            <div class="compare-card empty" data-slot="2">
+              <div class="x hidden" aria-hidden="true">×</div>
+              <div class="plus">+</div>
+              <div class="muted">Select a flight to compare</div>
+            </div>
+          </div>
+
+          <div class="compare-table-wrap" id="compareTableWrap"></div>
+        </div>
+
+        <div class="panel-card">
+          <h3 class="section-title">Available Flights</h3>
+          <div class="available-list" id="availableOppList"></div>
+        </div>
+
+        <div class="panel-card">
+          <h3 class="section-title">Flight Details</h3>
+          <div id="oppCards" class="flight-list"></div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script src="../js/flightResults.js"></script>
+</body>
+</html>

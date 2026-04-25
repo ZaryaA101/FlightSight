@@ -118,8 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // If you don’t have flights.html, change this to booking.html or wherever you go next
-      window.location.href = "flightResultss.html";
+      window.location.href = "flightResults.html";
     });
 
     function updateSearchButton() {

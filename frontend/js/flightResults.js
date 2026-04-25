@@ -1,212 +1,338 @@
-// flightResults.js
+const $ = (id) => document.getElementById(id);
 
-// Mock flight data
-const MOCK_FLIGHTS = [
+function safe(v) {
+  return String(v ?? "").replace(/[<>&]/g, (c) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;"
+  }[c]));
+}
+
+function formatDateRange(depart, ret) {
+  if (!depart && !ret) return "—";
+  if (depart && ret) return `${depart} → ${ret}`;
+  return depart || ret;
+}
+
+function formatStoredDate(dateStr) {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function durationToMinutes(d) {
+  const h = /(\d+)\s*h/.exec(d)?.[1] ? Number(/(\d+)\s*h/.exec(d)[1]) : 0;
+  const m = /(\d+)\s*m/.exec(d)?.[1] ? Number(/(\d+)\s*m/.exec(d)[1]) : 0;
+  return h * 60 + m;
+}
+
+function badgeClassForPct(p) {
+  if (p >= 90) return "green";
+  if (p >= 70) return "blue";
+  return "amber";
+}
+
+function badgeClassForCo2(kg) {
+  if (kg <= 240) return "green";
+  if (kg <= 300) return "blue";
+  return "amber";
+}
+
+const airportData = {
+  "New York": { city: "New York", code: "JFK", country: "USA", lat: 40.64, lon: -73.78 },
+  "Chicago": { city: "Chicago", code: "ORD", country: "USA", lat: 41.97, lon: -87.91 },
+  "Los Angeles": { city: "Los Angeles", code: "LAX", country: "USA", lat: 33.94, lon: -118.40 },
+  "London": { city: "London", code: "LHR", country: "United Kingdom", lat: 51.47, lon: -0.45 },
+  "Tokyo": { city: "Tokyo", code: "NRT", country: "Japan", lat: 35.77, lon: 140.39 },
+  "Paris": { city: "Paris", code: "CDG", country: "France", lat: 49.01, lon: 2.55 },
+  "Frankfurt": { city: "Frankfurt", code: "FRA", country: "Germany", lat: 50.03, lon: 8.57 },
+  "Dubai": { city: "Dubai", code: "DXB", country: "UAE", lat: 25.25, lon: 55.36 },
+  "Singapore": { city: "Singapore", code: "SIN", country: "Singapore", lat: 1.36, lon: 103.99 }
+};
+
+function getAirportInfo(name, fallbackCode = "—") {
+  return airportData[name] || {
+    city: name,
+    code: fallbackCode,
+    country: "Unknown",
+    lat: 0,
+    lon: 0
+  };
+}
+
+function formatCoords(lat, lon) {
+  return `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => deg * Math.PI / 180;
+  const R = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
+function estimateFlightTime(distanceKm) {
+  const avgSpeed = 850;
+  const totalHours = distanceKm / avgSpeed + 2;
+  return `${Math.round(totalHours)} hrs`;
+}
+
+function getDirection(origin, destination) {
+  const lonDiff = destination.lon - origin.lon;
+  const latDiff = destination.lat - origin.lat;
+
+  if (Math.abs(lonDiff) >= Math.abs(latDiff)) {
+    return lonDiff >= 0 ? "Eastbound" : "Westbound";
+  }
+
+  return latDiff >= 0 ? "Northbound" : "Southbound";
+}
+
+function getStoredRoute() {
+  try {
+    const originRaw = localStorage.getItem("origin");
+    const destinationRaw = localStorage.getItem("destination");
+
+    if (!originRaw || !destinationRaw) return null;
+
+    const origin = JSON.parse(originRaw);
+    const destination = JSON.parse(destinationRaw);
+
+    return { origin, destination };
+  } catch {
+    return null;
+  }
+}
+
+function getStoredDates() {
+  return {
+    departure: localStorage.getItem("departureDate") || "",
+    return: localStorage.getItem("returnDate") || ""
+  };
+}
+
+function getDisplayName(airportObj, fallback = "—") {
+  if (!airportObj) return fallback;
+  return airportObj.name || airportObj.city || airportObj.code || fallback;
+}
+
+function getDisplayCode(airportObj, fallback = "—") {
+  if (!airportObj) return fallback;
+  return airportObj.code || fallback;
+}
+
+const params = new URLSearchParams(window.location.search);
+const storedRoute = getStoredRoute();
+const storedDates = getStoredDates();
+
+if (!storedRoute && !params.get("origin") && !params.get("destination")) {
+  alert("Please select a route first.");
+  window.location.href = "flightRoute.html";
+  throw new Error("No route selected");
+}
+
+const originName =
+  storedRoute?.origin ? getDisplayName(storedRoute.origin) : (params.get("origin") || "Los Angeles");
+
+const destinationName =
+  storedRoute?.destination ? getDisplayName(storedRoute.destination) : (params.get("destination") || "London");
+
+const departureDate =
+  storedDates.departure ? formatStoredDate(storedDates.departure) : (params.get("depart") || "Mar 14, 2026");
+
+const returnDate =
+  storedDates.return ? formatStoredDate(storedDates.return) : (params.get("return") || "Mar 28, 2026");
+
+const originCode =
+  storedRoute?.origin ? getDisplayCode(storedRoute.origin, "ORG") : getAirportInfo(originName, "ORG").code;
+
+const destinationCode =
+  storedRoute?.destination ? getDisplayCode(storedRoute.destination, "DST") : getAirportInfo(destinationName, "DST").code;
+
+const API_BASE_RESULTS = "http://localhost:3000";
+
+$("routeText").textContent = `${originName} → ${destinationName}`;
+$("dateRange").textContent = formatDateRange(departureDate, returnDate);
+
+const flights = [
   {
-    id: 1,
-    airline: "United Airlines",
-    airlineCode: "UA",
-    flightNumber: "UA 1234",
-    departure: { time: "08:30", city: "New York (JFK)", code: "JFK", date: "2023-10-01" },
-    arrival: { time: "14:15", city: "Los Angeles (LAX)", code: "LAX" },
-    duration: "5h 45m",
-    stops: 0,
-    price: 320,
-    aircraft: "Boeing 737-800",
-    safetyRating: 79,
-    emissionScore: 85,
-    seatAvailability: 68,
-    ancillaries: {
-      extraBaggage: { name: "Extra Baggage (20kg)", cost: 50 },
-      seatSelection: { name: "Preferred Seat", cost: 30 },
-      priorityBoarding: { name: "Priority Boarding", cost: 25 }
-    }
+    id: "JB1",
+    airline: "JetBlue Airways",
+    flight: "JE1092",
+    aircraft: "Boeing 737",
+    depart: "10:00 AM",
+    departCode: originCode,
+    arrive: "2:15 PM",
+    arriveCode: destinationCode,
+    duration: "5h 0m",
+    stops: 1,
+    price: 403,
+    safety: 89,
+    co2: 273,
+    weather: 89,
+    seats: 40,
+    score: 64
   },
   {
-    id: 2,
+    id: "DL1",
     airline: "Delta Air Lines",
-    airlineCode: "DL",
-    flightNumber: "DL 5678",
-    departure: { time: "10:15", city: "New York (JFK)", code: "JFK", date: "2023-10-02" },
-    arrival: { time: "16:45", city: "Los Angeles (LAX)", code: "LAX" },
+    flight: "DE1023",
+    aircraft: "Airbus A320",
+    depart: "7:30 AM",
+    departCode: originCode,
+    arrive: "11:45 AM",
+    arriveCode: destinationCode,
+    duration: "3h 15m",
+    stops: 1,
+    price: 507,
+    safety: 80,
+    co2: 236,
+    weather: 67,
+    seats: 98,
+    score: 64
+  },
+  {
+    id: "AS1",
+    airline: "Alaska Airlines",
+    flight: "AL1115",
+    aircraft: "Airbus A320",
+    depart: "11:30 AM",
+    departCode: originCode,
+    arrive: "3:45 PM",
+    arriveCode: destinationCode,
+    duration: "5h 15m",
+    stops: 2,
+    price: 524,
+    safety: 98,
+    co2: 284,
+    weather: 76,
+    seats: 90,
+    score: 67
+  },
+  {
+    id: "UA1",
+    airline: "United Airlines",
+    flight: "UN1138",
+    aircraft: "Boeing 787",
+    depart: "12:00 PM",
+    departCode: originCode,
+    arrive: "4:15 PM",
+    arriveCode: destinationCode,
     duration: "6h 30m",
     stops: 0,
-    price: 345,
-    aircraft: "Airbus A320",
-    safetyRating: 82,
-    emissionScore: 78,
-    seatAvailability: 72,
-    ancillaries: {
-      extraBaggage: { name: "Extra Baggage (20kg)", cost: 55 },
-      seatSelection: { name: "Extra Legroom Seat", cost: 40 }
-    }
+    price: 557,
+    safety: 82,
+    co2: 261,
+    weather: 67,
+    seats: 67,
+    score: 59
   },
   {
-    id: 3,
-    airline: "American Airlines",
-    airlineCode: "AA",
-    flightNumber: "AA 9012",
-    departure: { time: "12:00", city: "New York (JFK)", code: "JFK", date: "2023-10-03" },
-    arrival: { time: "15:30", city: "Los Angeles (LAX)", code: "LAX" },
-    duration: "3h 30m",
-    stops: 1,
-    price: 280,
-    aircraft: "Boeing 777",
-    safetyRating: 76,
-    emissionScore: 82,
-    seatAvailability: 55,
-    ancillaries: {
-      priorityBoarding: { name: "Priority Boarding", cost: 20 }
-    }
-  },
-  {
-    id: 4,
-    airline: "JetBlue Airways",
-    airlineCode: "B6",
-    flightNumber: "B6 3456",
-    departure: { time: "14:20", city: "New York (JFK)", code: "JFK", date: "2023-10-04" },
-    arrival: { time: "18:10", city: "Los Angeles (LAX)", code: "LAX" },
-    duration: "3h 50m",
-    stops: 1,
-    price: 295,
-    aircraft: "Airbus A321",
-    safetyRating: 88,
-    emissionScore: 75,
-    seatAvailability: 80,
-    ancillaries: {}
-  },
-  {
-    id: 5,
-    airline: "Alaska Airlines",
-    airlineCode: "AS",
-    flightNumber: "AS 7890",
-    departure: { time: "16:45", city: "New York (JFK)", code: "JFK", date: "2023-10-05" },
-    arrival: { time: "20:15", city: "Los Angeles (LAX)", code: "LAX" },
-    duration: "3h 30m",
-    stops: 2,
-    price: 265,
-    aircraft: "Boeing 737 MAX",
-    safetyRating: 91,
-    emissionScore: 70,
-    seatAvailability: 65,
-    ancillaries: {
-      extraBaggage: { name: "Extra Baggage (20kg)", cost: 45 },
-      seatSelection: { name: "Preferred Seat", cost: 35 },
-      priorityBoarding: { name: "Priority Boarding", cost: 30 }
-    }
+    id: "UA0",
+    airline: "United Airlines",
+    flight: "UN1000",
+    aircraft: "Boeing 737",
+    depart: "6:00 AM",
+    departCode: originCode,
+    arrive: "10:15 AM",
+    arriveCode: destinationCode,
+    duration: "3h 0m",
+    stops: 0,
+    price: 374,
+    safety: 100,
+    co2: 350,
+    weather: 86,
+    seats: 60,
+    score: 65
   }
 ];
 
-let currentFlights = [...MOCK_FLIGHTS];
-let filteredFlights = [...MOCK_FLIGHTS];
-let selectedForComparison = [];
-
-// ---- Live data integration (additive, non-destructive) ----
-// Backend endpoint `/api/flights/predict` runs predict_flights_cli.py which
-// already calls risk_score.compute_risk and returns delayCancellationRiskScore,
-// riskBand, riskExplanation per flight. We fetch those here and adapt each
-// flight to the existing MOCK_FLIGHTS shape the renderer expects, while
-// preserving the full predict-shape object for booking.js.
-const API_BASE_FR = "http://localhost:3000";
-
-function _firstSeg(s) {
-  return String(s || "").split("||")[0].trim();
+function normalizeApiCode(rawCode, fallback) {
+  const code = String(rawCode || "").trim().toUpperCase();
+  return code ? code : fallback;
 }
 
-function _hhmmFromIso(iso) {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      // predict_flights_cli emits "YYYY-MM-DDTHH:MM:SS" without tz; fall back
-      const m = String(iso).match(/T(\d{2}):(\d{2})/);
-      return m ? `${m[1]}:${m[2]}` : String(iso);
-    }
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  } catch {
-    return String(iso);
+function toShortTime(isoOrTime) {
+  if (!isoOrTime) return "—";
+
+  const raw = String(isoOrTime);
+  const isoMatch = raw.match(/T(\d{2}):(\d{2})/);
+  if (isoMatch) {
+    const hour24 = Number(isoMatch[1]);
+    const minute = isoMatch[2];
+    const hour12 = ((hour24 + 11) % 12) + 1;
+    const suffix = hour24 >= 12 ? "PM" : "AM";
+    return `${hour12}:${minute} ${suffix}`;
   }
+
+  return raw;
 }
 
-function _airlineCodeFromName(name) {
-  const n = String(name || "").trim();
-  if (!n) return "XX";
-  const map = {
-    "united airlines": "UA",
-    "delta": "DL",
-    "delta air lines": "DL",
-    "american airlines": "AA",
-    "jetblue airways": "B6",
-    "jetblue": "B6",
-    "alaska airlines": "AS",
-    "southwest airlines": "WN",
-    "spirit airlines": "NK",
-    "frontier airlines": "F9",
-    "hawaiian airlines": "HA",
-  };
-  const key = n.toLowerCase();
-  if (map[key]) return map[key];
-  // initials fallback
-  const parts = n.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return n.slice(0, 2).toUpperCase();
+function parseSeatPercent(seatAvailability) {
+  const match = String(seatAvailability || "").match(/(\d+)/);
+  if (!match) return 60;
+  const seats = Number(match[1]);
+  if (!Number.isFinite(seats)) return 60;
+  return Math.max(5, Math.min(100, Math.round((seats / 60) * 100)));
 }
 
-// Adapt a predict-shape flight (from /api/flights/predict) into the shape
-// this page's renderer / filters / sort / comparison already rely on, while
-// preserving the predict-shape fields so selectFlight() can forward them
-// to booking.js (which validates its own shape).
-function adaptPredictFlight(p, idx) {
-  const code = _airlineCodeFromName(p.airline);
-  const stops = Number(p.stops) || 0;
-  const price = Number(p.totalFare) || 0;
-  return {
-    // --- fields used by current render/filter/sort/comparison code ---
-    id: idx + 1,
-    airline: p.airline || "Unknown",
-    airlineCode: code,
-    flightNumber: `${code} ${String(p.legId || "").slice(0, 4).toUpperCase() || (1000 + idx)}`,
-    departure: {
-      time: _hhmmFromIso(p.departureTime) || "--:--",
-      city: p.origin || "",
-      code: p.origin || "",
-      date: p.departureDate,
-    },
-    arrival: {
-      time: _hhmmFromIso(p.arrivalTime) || "--:--",
-      city: p.destination || "",
-      code: p.destination || "",
-    },
-    duration: p.travelDuration || p.flightTime || "",
-    stops,
-    price,
-    aircraft: "—",
-    safetyRating: 80,
-    emissionScore: 80,
-    seatAvailability: 60,
-    ancillaries: {},
+function computeUiScore(flight) {
+  const stopPenalty = Math.min(30, Number(flight.stops || 0) * 12);
+  const normalizedPrice = Math.min(35, Math.round(Number(flight.price || 0) / 25));
+  return Math.max(1, Math.min(100, Math.round((flight.safety * 0.4) + (flight.weather * 0.2) + (flight.seats * 0.2) + (100 - normalizedPrice) * 0.2 - stopPenalty * 0.1)));
+}
 
-    // --- NEW: risk fields (already computed server-side) ---
-    delayCancellationRiskScore: typeof p.delayCancellationRiskScore === "number"
-      ? p.delayCancellationRiskScore
-      : undefined,
-    riskBand: p.riskBand,
-    riskExplanation: p.riskExplanation,
+function adaptPredictFlight(p, index) {
+  const risk = Number(p.delayCancellationRiskScore);
+  const safeRisk = Number.isFinite(risk) ? Math.max(0, Math.min(100, risk)) : 50;
+  const safety = Math.max(40, 100 - safeRisk);
+  const weather = Math.max(45, 98 - Math.round(safeRisk * 0.6));
+  const seats = parseSeatPercent(p.seatAvailability);
+  const co2 = Math.max(160, 220 + Number(p.stops || 0) * 45 + Math.round(safeRisk * 0.6));
 
-    // --- preserve full predict-shape for booking.js ---
+  const adapted = {
+    id: p.legId || `PRED-${index + 1}`,
+    airline: p.airline || "Unknown Airline",
+    flight: (p.legId || `PRED${index + 1}`).toString().slice(0, 10).toUpperCase(),
+    aircraft: "Predicted",
+    depart: toShortTime(p.departureTime),
+    departCode: p.origin || originCode,
+    arrive: toShortTime(p.arrivalTime),
+    arriveCode: p.destination || destinationCode,
+    duration: p.travelDuration || p.flightTime || "—",
+    stops: Number(p.stops) || 0,
+    price: Number(p.totalFare) || 0,
+    safety,
+    co2,
+    weather,
+    seats,
+    score: 0,
     _predictShape: {
       legId: p.legId,
       origin: p.origin,
       destination: p.destination,
       departureDate: p.departureDate,
       airline: p.airline,
-      totalFare: typeof p.totalFare === "number" ? p.totalFare : Number(p.totalFare) || 0,
+      totalFare: Number(p.totalFare) || 0,
       travelDuration: p.travelDuration ?? null,
       flightTime: p.flightTime ?? null,
       layoverTime: p.layoverTime ?? null,
-      stops,
+      stops: Number(p.stops) || 0,
       seatAvailability: p.seatAvailability ?? "Unknown",
       confidence: p.confidence ?? "Unknown",
       departureTime: p.departureTime ?? null,
@@ -215,706 +341,583 @@ function adaptPredictFlight(p, idx) {
       delayCancellationRiskScore: p.delayCancellationRiskScore,
       riskBand: p.riskBand,
       riskExplanation: p.riskExplanation,
-    },
-  };
-}
-
-async function fetchLiveFlights() {
-  try {
-    const route = getStoredRoute();
-    const dates = getStoredDates();
-    if (!route || !dates.departure) return null;
-    const originCode = route.origin?.code;
-    const destCode = route.destination?.code;
-    if (!originCode || !destCode) return null;
-
-    // localStorage stores ISO datetime; backend expects YYYY-MM-DD
-    const depDate = String(dates.departure).slice(0, 10);
-
-    const params = new URLSearchParams({
-      origin: originCode,
-      destination: destCode,
-      departureDate: depDate,
-    });
-
-    const url = `${API_BASE_FR}/api/flights/predict?${params.toString()}`;
-    console.log("[FlightSight] Live flights URL:", url);
-
-    const r = await fetch(url);
-    if (!r.ok) {
-      console.warn("[FlightSight] /api/flights/predict HTTP error:", r.status);
-      return null;
     }
-    const payload = await r.json();
-    const raw = Array.isArray(payload?.flights) ? payload.flights : [];
-    if (!raw.length) return null;
+  };
 
-    const adapted = raw.map((p, i) => adaptPredictFlight(p, i));
-    console.log(`[FlightSight] Live flights loaded: ${adapted.length}`);
-    return adapted;
-  } catch (err) {
-    console.warn("[FlightSight] fetchLiveFlights failed, falling back to mock:", err);
-    return null;
-  }
+  adapted.score = computeUiScore(adapted);
+  return adapted;
 }
 
-// Get route from localStorage
-function getStoredRoute() {
-  const originRaw = localStorage.getItem("origin");
-  const destinationRaw = localStorage.getItem("destination");
+function getPredictRequestValues() {
+  const fallbackOrigin = normalizeApiCode(params.get("origin"), originCode);
+  const fallbackDestination = normalizeApiCode(params.get("destination"), destinationCode);
+  const storedDeparture = String(storedDates.departure || "").slice(0, 10);
+  const urlDeparture = String(params.get("depart") || "").slice(0, 10);
 
-  if (!originRaw || !destinationRaw) return null;
+  const origin = normalizeApiCode(storedRoute?.origin?.code, fallbackOrigin);
+  const destination = normalizeApiCode(storedRoute?.destination?.code, fallbackDestination);
+  const departureDate = storedDeparture || urlDeparture;
+
+  return { origin, destination, departureDate };
+}
+
+async function loadLiveFlights() {
+  const { origin, destination, departureDate } = getPredictRequestValues();
+
+  if (!origin || !destination || !departureDate) {
+    return;
+  }
 
   try {
-    const origin = JSON.parse(originRaw);
-    const destination = JSON.parse(destinationRaw);
-    return { origin, destination };
-  } catch {
-    return null;
+    const query = new URLSearchParams({
+      origin,
+      destination,
+      departureDate,
+    });
+    const url = `${API_BASE_RESULTS}/api/flights/predict?${query.toString()}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn("[FlightSight] /api/flights/predict failed:", response.status);
+      return;
+    }
+
+    const payload = await response.json();
+    const predictedFlights = Array.isArray(payload?.flights) ? payload.flights : [];
+    if (!predictedFlights.length) {
+      return;
+    }
+
+    const mapped = predictedFlights.map(adaptPredictFlight);
+    flights.length = 0;
+    mapped.forEach((f) => flights.push(f));
+  } catch (err) {
+    console.warn("[FlightSight] Live flight fetch failed. Using fallback list.", err);
   }
 }
 
-// Get dates from localStorage
-function getStoredDates() {
-  const depart = localStorage.getItem("departureDate");
-  const ret = localStorage.getItem("returnDate");
-  return { departure: depart, return: ret };
-}
+const state = {
+  view: "filters",
+  maxPrice: 1000,
+  stopsAllowed: new Set([0, 1, 2]),
+  minSafety: 0,
+  sortBy: "price_asc",
+  compare: []
+};
 
-// Update route label
-function updateRouteLabel() {
-  const route = getStoredRoute();
-  const routeLabel = document.getElementById("routeLabel");
-  if (route && routeLabel) {
-    routeLabel.textContent = `${route.origin.code} → ${route.destination.code}`;
+function renderStats(list) {
+  if (!list.length) {
+    $("avgPrice").textContent = "—";
+    $("lowPrice").textContent = "—";
+    $("bestSafety").textContent = "—";
+    $("lowCo2").textContent = "—";
+    $("flightCountPill").textContent = "0 flights";
+    return;
   }
+
+  const avg = Math.round(list.reduce((a, f) => a + f.price, 0) / list.length);
+  const low = Math.min(...list.map((f) => f.price));
+  const bestSafety = Math.max(...list.map((f) => f.safety));
+  const lowCo2 = Math.min(...list.map((f) => f.co2));
+
+  $("avgPrice").textContent = `$${avg}`;
+  $("lowPrice").textContent = `$${low}`;
+  $("bestSafety").textContent = `${bestSafety}%`;
+  $("lowCo2").textContent = `${lowCo2} kg`;
+  $("flightCountPill").textContent = `${list.length} flights`;
 }
 
-// Render flight card (updated with checkbox)
-function renderFlightCard(flight) {
-  const isSelected = selectedForComparison.includes(flight.id);
+function applyFilters(data) {
+  let out = [...data];
+
+  out = out.filter((f) => f.price <= state.maxPrice);
+  out = out.filter((f) => f.safety >= state.minSafety);
+  out = out.filter((f) => state.stopsAllowed.has(f.stops));
+
+  switch (state.sortBy) {
+    case "price_asc":
+      out.sort((a, b) => a.price - b.price);
+      break;
+    case "safety_desc":
+      out.sort((a, b) => b.safety - a.safety);
+      break;
+    case "co2_asc":
+      out.sort((a, b) => a.co2 - b.co2);
+      break;
+    case "duration_asc":
+      out.sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));
+      break;
+  }
+
+  return out;
+}
+
+function syncFilterUI() {
+  $("priceRange").value = String(state.maxPrice);
+  $("priceRangeLabel").textContent = `$0 – $${state.maxPrice}`;
+
+  $("minSafety").value = String(state.minSafety);
+  $("minSafetyLabel").textContent = `${state.minSafety}%`;
+
+  $("stops0").checked = state.stopsAllowed.has(0);
+  $("stops1").checked = state.stopsAllowed.has(1);
+  $("stops2").checked = state.stopsAllowed.has(2);
+
+  $("sortBy").value = state.sortBy;
+}
+
+function selectFlight(flightId) {
+  const flight = flights.find((f) => f.id === flightId);
+  if (!flight) return;
+
+  const payload = flight._predictShape || flight;
+  localStorage.setItem("selectedFlight", JSON.stringify(payload));
+  window.location.href = "Booking.html";
+}
+
+function flightCardHTML(f, includeOppCallout = false, cheapestPrice = null) {
+  const stopText = f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops");
+
+  const oppText = (() => {
+    if (!includeOppCallout || cheapestPrice == null) return "";
+    const delta = f.price - cheapestPrice;
+    const sign = delta >= 0 ? "costs" : "saves";
+    const amount = `$${Math.abs(delta)}`;
+
+    return `
+      <div class="opp-callout">
+        <strong>Opportunity Cost</strong><br />
+        Choosing this flight over the cheapest option ${sign} ${amount} more.
+        You gain <b>${Math.max(0, f.safety - 70)}%</b> better safety and save
+        <b>${Math.max(0, 300 - f.co2)} kg</b> CO₂.
+      </div>
+    `;
+  })();
+
   return `
-    <div class="flight-card" data-flight-id="${flight.id}">
-      <div class="flight-header">
-        <div class="flight-airline">
-          <input type="checkbox" class="compare-checkbox" data-flight-id="${flight.id}" ${isSelected ? 'checked' : ''} onchange="toggleComparison(${flight.id})">
-          <div class="airline-logo">${flight.airlineCode}</div>
-          <div>
-            <div class="airline-name">${flight.airline}</div>
-            <div class="flight-number">${flight.flightNumber}</div>
+    <div class="flight-card" data-id="${safe(f.id)}">
+      <div>
+        <div class="flight-head">
+          <strong>${safe(f.airline)}</strong>
+          <div class="muted flight-sub">${safe(f.flight)} • ${safe(f.aircraft)}</div>
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-block">
+            <div class="k">Departure</div>
+            <div class="v">${safe(f.depart)}</div>
+            <div class="s">${safe(f.departCode)}</div>
+          </div>
+          <div class="meta-block">
+            <div class="k">Duration</div>
+            <div class="v">${safe(f.duration)}</div>
+            <div class="s">${safe(stopText)}</div>
+          </div>
+          <div class="meta-block">
+            <div class="k">Arrival</div>
+            <div class="v">${safe(f.arrive)}</div>
+            <div class="s">${safe(f.arriveCode)}</div>
           </div>
         </div>
-        <div class="flight-price">
-          <div class="price-amount">$${flight.price}</div>
-          <div class="price-label">per person</div>
+
+        <div class="badges">
+          <div class="badge ${badgeClassForPct(f.safety)}">
+            <div class="l">🛡️ Safety</div>
+            <div class="v">${safe(f.safety)}%</div>
+          </div>
+          <div class="badge ${badgeClassForCo2(f.co2)}">
+            <div class="l">🌿 CO₂</div>
+            <div class="v">${safe(f.co2)} kg</div>
+          </div>
+          <div class="badge blue">
+            <div class="l">☁️ Weather</div>
+            <div class="v">${safe(f.weather)}%</div>
+          </div>
+          <div class="badge blue">
+            <div class="l">💺 Seats</div>
+            <div class="v">${safe(f.seats)}%</div>
+          </div>
+          <div class="badge purple">
+            <div class="l">⭐ Score</div>
+            <div class="v">${safe(f.score)}</div>
+          </div>
         </div>
+
+        ${oppText}
       </div>
 
-      <div class="flight-details">
-        <div class="flight-departure">
-          <div class="flight-time">${flight.departure.time}</div>
-          <div class="flight-city">${flight.departure.city}</div>
-        </div>
-        <div class="flight-duration">
-          <div class="duration-time">${flight.duration}</div>
-          <div class="duration-label">${flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`}</div>
-        </div>
-        <div class="flight-arrival">
-          <div class="flight-time">${flight.arrival.time}</div>
-          <div class="flight-city">${flight.arrival.city}</div>
-        </div>
-      </div>
-
-      <div class="flight-meta">
-        <div class="flight-stops">
-          <span>Aircraft: ${flight.aircraft}</span>
-          ${typeof flight.delayCancellationRiskScore === 'number'
-            ? `<div class="risk-badge risk-${(flight.riskBand || 'low').toLowerCase()}" title="${(flight.riskExplanation || '').replace(/"/g, '&quot;')}"><span class="risk-line">Cancellation/Delay Risk: ${flight.delayCancellationRiskScore}%</span><span class="risk-line">Risk: ${flight.riskBand || 'Unknown'}</span></div>`
-            : ''}
-        </div>
-        <div class="flight-actions">
-          <button class="btn-details" onclick="showFlightDetails(${flight.id})">Details</button>
-          <button class="btn-select" onclick="selectFlight(${flight.id})">Select Flight</button>
-        </div>
+      <div class="right-col">
+        <div class="price">$${safe(f.price)}<small>per person</small></div>
+        <button class="select-btn" type="button" onclick="selectFlight('${safe(f.id)}')">
+          Select Flight →
+        </button>
       </div>
     </div>
   `;
 }
 
-// Render all flights
-function renderFlights(flights) {
-  const flightsList = document.getElementById("flightsList");
-  flightsList.innerHTML = flights.map(renderFlightCard).join("");
-  updateResultsCount(flights.length);
+function renderList() {
+  const filtered = applyFilters(flights);
+  renderStats(filtered);
+  $("flightList").innerHTML = filtered.map((f) => flightCardHTML(f)).join("");
 }
 
-// Update results count
-function updateResultsCount(count) {
-  const resultsCount = document.getElementById("resultsCount");
-  resultsCount.textContent = `${count} flight${count !== 1 ? 's' : ''} found`;
+function renderRecommendation() {
+  const filtered = applyFilters(flights).sort((a, b) => b.score - a.score);
+  renderStats(filtered);
+  $("flightList").innerHTML = filtered.map((f) => flightCardHTML(f)).join("");
 }
 
-// Sort flights
-function sortFlights(flights, sortBy) {
-  const sorted = [...flights];
-  switch (sortBy) {
-    case "price":
-      return sorted.sort((a, b) => a.price - b.price);
-    case "duration":
-      return sorted.sort((a, b) => {
-        const aMinutes = parseDuration(a.duration);
-        const bMinutes = parseDuration(b.duration);
-        return aMinutes - bMinutes;
-      });
-    case "departure":
-      return sorted.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
-    default:
-      return sorted;
+let mapAnimationId = null;
+
+function renderMapView() {
+  const filtered = applyFilters(flights);
+  renderStats(filtered);
+
+  const origin = getAirportInfo(originName, filtered[0]?.departCode || "ORG");
+  const destination = getAirportInfo(destinationName, filtered[0]?.arriveCode || "DST");
+
+  const distance = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
+  const flightTime = estimateFlightTime(distance);
+  const direction = getDirection(origin, destination);
+
+  $("mapOriginName").textContent = origin.city;
+  $("mapOriginCode").textContent = `${origin.code} · ${origin.country}`;
+  $("mapOriginCoords").textContent = formatCoords(origin.lat, origin.lon);
+
+  $("mapDestinationName").textContent = destination.city;
+  $("mapDestinationCode").textContent = `${destination.code} · ${destination.country}`;
+  $("mapDestinationCoords").textContent = formatCoords(destination.lat, destination.lon);
+
+  $("mapDistance").textContent = `${distance} km`;
+  $("mapFlightTime").textContent = flightTime;
+  $("mapDirection").textContent = direction;
+
+  $("routeNoteOrigin").textContent = origin.city;
+  $("routeNoteDestination").textContent = destination.city;
+
+  const routeCurve = document.getElementById("routeCurve");
+  const routeDot = document.getElementById("routePlaneDot");
+  const originMarker = document.getElementById("originMarker");
+  const originPulse = document.getElementById("originPulse");
+  const destinationMarker = document.getElementById("destinationMarker");
+  const destinationPulse = document.getElementById("destinationPulse");
+  const originLabel = document.getElementById("originLabel");
+  const destinationLabel = document.getElementById("destinationLabel");
+  const originCenterDot = document.querySelector("#originMarkerGroup circle:nth-of-type(3)");
+  const destinationCenterDot = document.querySelector("#destinationMarkerGroup circle:nth-of-type(3)");
+
+  if (
+    !routeCurve || !routeDot || !originMarker || !originPulse ||
+    !destinationMarker || !destinationPulse || !originLabel ||
+    !destinationLabel || !originCenterDot || !destinationCenterDot
+  ) {
+    return;
   }
-}
 
-function parseDuration(duration) {
-  const match = duration.match(/(\d+)h\s*(\d+)m/);
-  if (match) {
-    return parseInt(match[1]) * 60 + parseInt(match[2]);
+  const viewWidth = 900;
+  const viewHeight = 430;
+  const padX = 90;
+  const padY = 60;
+
+  function projectPoint(lat, lon) {
+    const x = padX + ((lon + 180) / 360) * (viewWidth - padX * 2);
+    const y = padY + ((90 - lat) / 180) * (viewHeight - padY * 2);
+    return { x, y };
   }
-  return 0;
-}
 
-// Filter flights
-function filterFlights() {
-  const minPrice = parseFloat(document.getElementById("minPrice").value) || 0;
-  const maxPrice = parseFloat(document.getElementById("maxPrice").value) || Infinity;
+  let p1 = projectPoint(origin.lat, origin.lon);
+  let p2 = projectPoint(destination.lat, destination.lon);
 
-  const stopCheckboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"][value]');
-  const allowedStops = Array.from(stopCheckboxes)
-    .filter(cb => cb.checked)
-    .map(cb => parseInt(cb.value));
+  p1.x = Math.max(120, Math.min(viewWidth - 120, p1.x));
+  p2.x = Math.max(120, Math.min(viewWidth - 120, p2.x));
+  p1.y = Math.max(95, Math.min(viewHeight - 95, p1.y));
+  p2.y = Math.max(95, Math.min(viewHeight - 95, p2.y));
 
-  filteredFlights = MOCK_FLIGHTS.filter(flight => {
-    if (flight.price < minPrice || flight.price > maxPrice) return false;
-    if (!allowedStops.includes(flight.stops)) return false;
-    return true;
-  });
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const isClose = Math.abs(dx) < 110 && Math.abs(dy) < 70;
 
-  const sortBy = document.getElementById("sortSelect").value;
-  currentFlights = sortFlights(filteredFlights, sortBy);
-  renderFlights(currentFlights);
-}
+  const cx = (p1.x + p2.x) / 2;
+  let cy = Math.min(p1.y, p2.y) - (isClose ? 65 : 38) - Math.abs(dx) * 0.04;
+  cy = Math.max(55, cy);
 
-// Populate airline filters
-function populateAirlineFilters() {
-  const airlines = [...new Set(MOCK_FLIGHTS.map(f => f.airline))];
-  const airlineFilters = document.getElementById("airlineFilters");
+  const pathD = `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`;
+  routeCurve.setAttribute("d", pathD);
 
-  airlineFilters.innerHTML = airlines.map(airline => `
-    <label><input type="checkbox" value="${airline}" checked> ${airline}</label>
-  `).join("");
-}
+  originMarker.setAttribute("cx", p1.x);
+  originMarker.setAttribute("cy", p1.y);
+  originPulse.setAttribute("cx", p1.x);
+  originPulse.setAttribute("cy", p1.y);
+  originCenterDot.setAttribute("cx", p1.x);
+  originCenterDot.setAttribute("cy", p1.y);
 
-// Select flight
-function selectFlight(flightId) {
-  // Prefer the live/current list (so predict-shape objects are found),
-  // fall back to MOCK_FLIGHTS for safety.
-  const flight =
-    (currentFlights && currentFlights.find(f => f.id === flightId)) ||
-    MOCK_FLIGHTS.find(f => f.id === flightId);
+  destinationMarker.setAttribute("cx", p2.x);
+  destinationMarker.setAttribute("cy", p2.y);
+  destinationPulse.setAttribute("cx", p2.x);
+  destinationPulse.setAttribute("cy", p2.y);
+  destinationCenterDot.setAttribute("cx", p2.x);
+  destinationCenterDot.setAttribute("cy", p2.y);
 
-  if (!flight) return;
+  if (isClose) {
+    originLabel.setAttribute("x", p1.x + 10);
+    originLabel.setAttribute("y", p1.y - 18);
 
-  // If this flight came from the live predict pipeline, store the
-  // predict-shape object so booking.js's getSelectedFlight() shape check
-  // passes and the price-alert / baseline UI lights up. Otherwise keep
-  // legacy behavior.
-  const payload = flight._predictShape ? flight._predictShape : flight;
-  localStorage.setItem("selectedFlight", JSON.stringify(payload));
-  window.location.href = "Booking.html";
-}
-
-// Show flight details (expanded with ancillaries)
-function showFlightDetails(flightId) {
-  const flight = MOCK_FLIGHTS.find(f => f.id === flightId);
-  if (flight) {
-    let details = `Flight Details:\n${flight.airline} ${flight.flightNumber}\n${flight.departure.time} - ${flight.arrival.time}\nDuration: ${flight.duration}\nPrice: $${flight.price}`;
-    if (Object.keys(flight.ancillaries).length > 0) {
-      details += '\n\nAdditional Options:';
-      Object.values(flight.ancillaries).forEach(option => {
-        details += `\n- ${option.name}: $${option.cost}`;
-      });
-    }
-    alert(details);
-  }
-}
-
-// Load Additional Options
-function loadAdditionalOptions() {
-  const section = document.getElementById('additionalOptionsSection');
-  const loading = document.getElementById('optionsLoading');
-  const error = document.getElementById('optionsError');
-  const empty = document.getElementById('optionsEmpty');
-  const list = document.getElementById('optionsList');
-
-  // Show loading
-  loading.style.display = 'block';
-  error.style.display = 'none';
-  empty.style.display = 'none';
-  list.style.display = 'none';
-
-  try {
-    // Simulate async load
-    setTimeout(() => {
-      const options = prepareAdditionalOptions(currentFlights);
-      if (options.length === 0) {
-        empty.style.display = 'block';
-        loading.style.display = 'none';
-        return;
-      }
-      renderAdditionalOptions(options);
-      loading.style.display = 'none';
-      list.style.display = 'block';
-    }, 500);
-  } catch (err) {
-    console.error('Error loading additional options:', err);
-    error.style.display = 'block';
-    loading.style.display = 'none';
-  }
-}
-
-// Prepare options: aggregate ancillaries from flights
-function prepareAdditionalOptions(flights) {
-  const allOptions = {};
-  flights.forEach(flight => {
-    Object.entries(flight.ancillaries).forEach(([key, option]) => {
-      if (!allOptions[key]) {
-        allOptions[key] = { 
-          name: option.name, 
-          costs: [],
-          minCost: option.cost,
-          maxCost: option.cost
-        };
-      }
-      allOptions[key].costs.push(option.cost);
-      allOptions[key].minCost = Math.min(allOptions[key].minCost, option.cost);
-      allOptions[key].maxCost = Math.max(allOptions[key].maxCost, option.cost);
-    });
-  });
-  return Object.entries(allOptions).map(([key, data]) => ({
-    key,
-    name: data.name,
-    avgCost: data.costs.reduce((a, b) => a + b, 0) / data.costs.length,
-    minCost: data.minCost,
-    maxCost: data.maxCost,
-    count: data.costs.length
-  })).sort((a, b) => a.avgCost - b.avgCost);
-}
-
-// Render Additional Options
-function renderAdditionalOptions(options) {
-  const breakdown = document.getElementById('optionsBreakdown');
-  breakdown.innerHTML = '';
-  
-  options.forEach(option => {
-    const item = document.createElement('div');
-    item.className = 'option-item';
-    const priceRange = option.minCost === option.maxCost 
-      ? `$${option.avgCost.toFixed(2)}` 
-      : `$${option.minCost.toFixed(2)} - $${option.maxCost.toFixed(2)}`;
-    item.innerHTML = `
-      <div class="option-checkbox-row">
-        <label>
-          <input type="checkbox" data-cost="${option.avgCost}" onchange="updateTotal()"> 
-          <span class="option-name">${option.name}</span>
-        </label>
-      </div>
-      <div class="option-price-detail">
-        <span class="price-range">${priceRange}</span>
-        <span class="price-note">${option.count} flight${option.count !== 1 ? 's' : ''}</span>
-      </div>
-    `;
-    breakdown.appendChild(item);
-  });
-  updateTotal();
-}
-
-// Update Total Cost
-function updateTotal() {
-  const checkboxes = document.querySelectorAll('#optionsBreakdown input[type="checkbox"]');
-  let total = 0;
-  checkboxes.forEach(cb => {
-    if (cb.checked) {
-      const cost = parseFloat(cb.getAttribute('data-cost'));
-      total += cost;
-    }
-  });
-  const totalEl = document.getElementById('totalCost');
-  if (totalEl) {
-    totalEl.textContent = `$${total.toFixed(2)}`;
-  }
-}
-
-// Load Date vs Cost Analysis
-function loadDateVsCost() {
-  const section = document.getElementById('dateVsCostSection');
-  const loading = document.getElementById('dateVsCostLoading');
-  const error = document.getElementById('dateVsCostError');
-  const empty = document.getElementById('dateVsCostEmpty');
-  const trend = document.getElementById('trendVisualization');
-  const comparison = document.getElementById('comparisonVisualization');
-  const table = document.getElementById('detailedTable');
-
-  // Show loading
-  loading.style.display = 'block';
-  error.style.display = 'none';
-  empty.style.display = 'none';
-  trend.style.display = 'none';
-  comparison.style.display = 'none';
-  table.style.display = 'none';
-
-  try {
-    // Simulate async load (replace with real API if needed)
-    setTimeout(() => {
-      const data = prepareDateVsCostData(currentFlights);
-      if (data.length === 0) {
-        empty.style.display = 'block';
-        loading.style.display = 'none';
-        return;
-      }
-      renderTrendChart(data);
-      renderComparisonChart(data);
-      renderDetailedTable(data);
-      loading.style.display = 'none';
-      trend.style.display = 'block';
-      comparison.style.display = 'block';
-      table.style.display = 'block';
-    }, 500);
-  } catch (err) {
-    console.error('Error loading Date vs Cost:', err);
-    error.style.display = 'block';
-    loading.style.display = 'none';
-  }
-}
-
-// Prepare data: group by date, calculate averages
-function prepareDateVsCostData(flights) {
-  const grouped = {};
-  flights.forEach(flight => {
-    const date = flight.departure.date;
-    if (!grouped[date]) grouped[date] = { costs: [], airlines: [], stops: [] };
-    grouped[date].costs.push(flight.price);
-    grouped[date].airlines.push(flight.airline);
-    grouped[date].stops.push(flight.stops);
-  });
-  return Object.entries(grouped).map(([date, data]) => ({
-    date,
-    avgCost: data.costs.reduce((a, b) => a + b, 0) / data.costs.length,
-    minCost: Math.min(...data.costs),
-    maxCost: Math.max(...data.costs),
-    flights: data.costs.length,
-    airlines: data.airlines,
-    stops: data.stops
-  })).sort((a, b) => new Date(a.date) - new Date(b.date));
-}
-
-// Render Trend Chart (simple bar chart using divs)
-function renderTrendChart(data) {
-  const chart = document.getElementById('trendChart');
-  chart.innerHTML = '';
-  const maxCost = Math.max(...data.map(d => d.avgCost));
-  data.forEach(d => {
-    const bar = document.createElement('div');
-    bar.className = 'chart-bar';
-    bar.style.height = `${(d.avgCost / maxCost) * 100}%`;
-    bar.title = `${new Date(d.date).toLocaleDateString()}: $${d.avgCost.toFixed(2)}`;
-    const label = document.createElement('div');
-    label.className = 'chart-label';
-    label.textContent = new Date(d.date).toLocaleDateString();
-    bar.appendChild(label);
-    chart.appendChild(bar);
-  });
-}
-
-// Render Comparison Chart (by period, e.g., weekday vs weekend)
-function renderComparisonChart(data) {
-  const chart = document.getElementById('comparisonChart');
-  chart.innerHTML = '';
-  const periods = { weekday: [], weekend: [] };
-  data.forEach(d => {
-    const day = new Date(d.date).getDay();
-    if (day === 0 || day === 6) periods.weekend.push(d.avgCost);
-    else periods.weekday.push(d.avgCost);
-  });
-  const avgWeekday = periods.weekday.reduce((a, b) => a + b, 0) / periods.weekday.length || 0;
-  const avgWeekend = periods.weekend.reduce((a, b) => a + b, 0) / periods.weekend.length || 0;
-  const maxAvg = Math.max(avgWeekday, avgWeekend);
-  ['Weekday', 'Weekend'].forEach((period, i) => {
-    const avg = i === 0 ? avgWeekday : avgWeekend;
-    const bar = document.createElement('div');
-    bar.className = 'chart-bar';
-    bar.style.height = `${(avg / maxAvg) * 100}%`;
-    bar.title = `${period}: $${avg.toFixed(2)}`;
-    const label = document.createElement('div');
-    label.className = 'chart-label';
-    label.textContent = period;
-    bar.appendChild(label);
-    chart.appendChild(bar);
-  });
-}
-
-// Render Detailed Table
-function renderDetailedTable(data) {
-  const tbody = document.getElementById('tableBody');
-  tbody.innerHTML = '';
-  data.forEach(d => {
-    d.airlines.forEach((airline, i) => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${new Date(d.date).toLocaleDateString()}</td>
-        <td>$${d.costs[i].toFixed(2)}</td>
-        <td>${airline}</td>
-        <td>${d.stops[i]}</td>
-      `;
-      tbody.appendChild(row);
-    });
-  });
-}
-
-// Toggle comparison selection
-function toggleComparison(flightId) {
-  const index = selectedForComparison.indexOf(flightId);
-  if (index > -1) {
-    selectedForComparison.splice(index, 1);
-  } else if (selectedForComparison.length < 2) {
-    selectedForComparison.push(flightId);
+    destinationLabel.setAttribute("x", p2.x - 52);
+    destinationLabel.setAttribute("y", p2.y - 18);
   } else {
-    alert('You can only compare up to 2 airlines.');
-    document.querySelector(`[data-flight-id="${flightId}"] .compare-checkbox`).checked = false;
-    return;
+    originLabel.setAttribute("x", p1.x - 46);
+    originLabel.setAttribute("y", p1.y - 20);
+
+    destinationLabel.setAttribute("x", p2.x - 36);
+    destinationLabel.setAttribute("y", p2.y - 20);
   }
-  renderFlights(currentFlights);
-  updateCompareButton();
-}
 
-// Update compare button visibility
-function updateCompareButton() {
-  let btn = document.getElementById('compareBtn');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'compareBtn';
-    btn.className = 'btn-primary';
-    btn.textContent = 'Compare Selected';
-    btn.onclick = loadComparison;
-    document.querySelector('.sort-bar').appendChild(btn);
+  originLabel.textContent = `${origin.city} (${origin.code})`;
+  destinationLabel.textContent = `${destination.city} (${destination.code})`;
+
+  if (mapAnimationId) cancelAnimationFrame(mapAnimationId);
+
+  const pathLength = routeCurve.getTotalLength();
+  let progress = 0;
+
+  function animateDot() {
+    progress += Math.max(1.2, pathLength / 220);
+    if (progress > pathLength) progress = 0;
+
+    const point = routeCurve.getPointAtLength(progress);
+    routeDot.setAttribute("cx", point.x);
+    routeDot.setAttribute("cy", point.y);
+
+    mapAnimationId = requestAnimationFrame(animateDot);
   }
-  btn.style.display = selectedForComparison.length === 2 ? 'inline-block' : 'none';
+
+  animateDot();
 }
 
-// Load Comparison
-function loadComparison() {
-  const section = document.getElementById('comparisonSection');
-  const loading = document.getElementById('comparisonLoading');
-  const error = document.getElementById('comparisonError');
-  const empty = document.getElementById('comparisonEmpty');
-  const layout = document.getElementById('comparisonLayout');
-
-  section.style.display = 'block';
-  loading.style.display = 'block';
-  error.style.display = 'none';
-  empty.style.display = 'none';
-  layout.style.display = 'none';
-
-  try {
-    setTimeout(() => {
-      const flights = selectedForComparison.map(id => MOCK_FLIGHTS.find(f => f.id === id)).filter(Boolean);
-      if (flights.length !== 2) {
-        empty.style.display = 'block';
-        loading.style.display = 'none';
-        return;
-      }
-      renderComparison(flights);
-      loading.style.display = 'none';
-      layout.style.display = 'grid';
-    }, 500);
-  } catch (err) {
-    console.error('Error loading comparison:', err);
-    error.style.display = 'block';
-    loading.style.display = 'none';
-  }
-}
-
-// Render Comparison
-function renderComparison(flights) {
-  const left = document.getElementById('comparisonLeft');
-  const right = document.getElementById('comparisonRight');
-  [left, right].forEach((col, i) => {
-    const flight = flights[i];
-    col.innerHTML = `
-      <h4>${flight.airline}</h4>
-      <p><strong>Total Price:</strong> $${flight.price}</p>
-      <p><strong>Duration:</strong> ${flight.duration}</p>
-      <p><strong>Stops:</strong> ${flight.stops}</p>
-      <p><strong>Extra Baggage:</strong> $${flight.ancillaries.extraBaggage?.cost || 0}</p>
-      <p><strong>Seat Selection:</strong> $${flight.ancillaries.seatSelection?.cost || 0}</p>
-      <p><strong>Priority Boarding:</strong> $${flight.ancillaries.priorityBoarding?.cost || 0}</p>
-    `;
-  });
-}
-
-// Hide Comparison
-function hideComparison() {
-  document.getElementById('comparisonSection').style.display = 'none';
-  resetComparison();
-}
-
-// Reset Comparisons
-function resetComparison() {
-  selectedForComparison = [];
-  document.querySelectorAll('.compare-checkbox').forEach(cb => cb.checked = false);
-  renderFlights(currentFlights);
-  updateCompareButton();
-}
-
-// =================== Recommendation System ===================
-
-// Calculate recommendation score using rule-based approach
-function calculateRecommendationScore(flight) {
-  let score = 0;
-  let weights = {
-    price: 0.25,
-    safety: 0.30,
-    emissions: 0.20,
-    stops: 0.15,
-    availability: 0.10
-  };
-
-  // Price score (lower is better, inverse relationship)
-  const maxPrice = Math.max(...MOCK_FLIGHTS.map(f => f.price));
-  const priceScore = 100 * (1 - (flight.price / maxPrice));
-  score += priceScore * weights.price;
-
-  // Safety score (higher is better)
-  score += flight.safetyRating * weights.safety;
-
-  // Emissions score (higher is better - lower emissions)
-  score += flight.emissionScore * weights.emissions;
-
-  // Stops score (fewer is better)
-  const stopScore = Math.max(0, 100 - (flight.stops * 25));
-  score += stopScore * weights.stops;
-
-  // Seat availability score (higher is better)
-  score += flight.seatAvailability * weights.availability;
-
-  return Math.round(score * 10) / 10;
-}
-
-// Get best airline recommendation
-function getRecommendedAirline() {
-  if (!MOCK_FLIGHTS || MOCK_FLIGHTS.length === 0) return null;
-  
-  const scored = MOCK_FLIGHTS.map(flight => ({
-    ...flight,
-    score: calculateRecommendationScore(flight)
-  })).sort((a, b) => b.score - a.score);
-
-  return scored[0];
-}
-
-// Display recommendation
-function displayRecommendation() {
-  const recommended = getRecommendedAirline();
-  if (!recommended) return;
-
-  const recPanel = document.getElementById('recommendationPanel');
-  if (!recPanel || !recPanel.innerHTML) return;
-
-  const recSection = recPanel.querySelector('.rec-section');
-  if (recSection) {
-    recSection.innerHTML = `
-      <div class="recommendation-card">
-        <div class="rec-header">
-          <h4>Recommended Airline</h4>
-          <span class="rec-score">${recommended.score.toFixed(1)}/100</span>
+function renderOppAvailableRows(filtered) {
+  $("availableOppList").innerHTML = filtered.map((f) => {
+    return `
+      <div class="row" data-row="${safe(f.id)}">
+        <div>
+          <div><b>${safe(f.airline)}</b></div>
+          <div class="tiny">${safe(f.flight)} • ${safe(f.depart)} – ${safe(f.arrive)}</div>
         </div>
-        <div class="rec-airline">
-          <div class="rec-airline-name">${recommended.airline}</div>
-          <div class="rec-airline-code">${recommended.airlineCode}</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="tiny"><b style="color:var(--blue)">$${safe(f.price)}</b></div>
+          <button class="add" type="button" data-add="${safe(f.id)}">+ Compare</button>
         </div>
-        <div class="rec-stats">
-          <div class="rec-stat">
-            <span class="stat-label">Price</span>
-            <span class="stat-value">$${recommended.price}</span>
-          </div>
-          <div class="rec-stat">
-            <span class="stat-label">Safety</span>
-            <span class="stat-value">${recommended.safetyRating}%</span>
-          </div>
-          <div class="rec-stat">
-            <span class="stat-label">Emissions</span>
-            <span class="stat-value">${recommended.emissionScore}</span>
-          </div>
-          <div class="rec-stat">
-            <span class="stat-label">Stops</span>
-            <span class="stat-value">${recommended.stops}</span>
-          </div>
-        </div>
-        <button class="btn-primary" onclick="selectFlight(${recommended.id})">Book This Flight</button>
       </div>
     `;
-  }
+  }).join("");
+
+  $("availableOppList").querySelectorAll("[data-add]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.add;
+      if (state.compare.includes(id)) return;
+      if (state.compare.length >= 3) return;
+      state.compare.push(id);
+      renderOpp();
+    });
+  });
 }
 
-// Initialize
-document.addEventListener("DOMContentLoaded", async () => {
-  const route = getStoredRoute();
-  if (!route) {
-    alert("Please select your route first.");
-    window.location.href = "flightRoute.html";
+function renderCompareCards(filtered) {
+  const slots = Array.from($("compareCards").querySelectorAll(".compare-card"));
+
+  slots.forEach((slotEl, i) => {
+    const id = state.compare[i];
+    const f = filtered.find((x) => x.id === id);
+
+    if (!f) {
+      slotEl.classList.add("empty");
+      slotEl.innerHTML = `
+        <div class="x hidden" aria-hidden="true">×</div>
+        <div class="plus">+</div>
+        <div class="muted">Select a flight to compare</div>
+      `;
+      return;
+    }
+
+    slotEl.classList.remove("empty");
+    slotEl.innerHTML = `
+      <div class="x" data-remove="${safe(f.id)}" title="Remove">×</div>
+      <div class="compare-mini-title">${safe(f.airline)}</div>
+      <div class="compare-mini-sub">${safe(f.flight)}</div>
+
+      <div class="compare-mini-grid">
+        <div>Price</div><div><b>$${safe(f.price)}</b></div>
+        <div>Duration</div><div><b>${safe(f.duration)}</b></div>
+        <div>Stops</div><div><b>${f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops")}</b></div>
+      </div>
+    `;
+  });
+
+  $("compareCards").querySelectorAll("[data-remove]").forEach((x) => {
+    x.addEventListener("click", () => {
+      const id = x.dataset.remove;
+      state.compare = state.compare.filter((v) => v !== id);
+      renderOpp();
+    });
+  });
+}
+
+function bestOf(values, mode) {
+  if (!values.length) return null;
+  return mode === "min" ? Math.min(...values) : Math.max(...values);
+}
+
+function renderComparisonTable(filtered) {
+  const chosen = state.compare.map((id) => filtered.find((f) => f.id === id)).filter(Boolean);
+
+  if (!chosen.length) {
+    $("compareTableWrap").innerHTML = "";
     return;
   }
 
-  updateRouteLabel();
+  const prices = chosen.map((f) => f.price);
+  const safeties = chosen.map((f) => f.safety);
+  const co2s = chosen.map((f) => f.co2);
+  const durations = chosen.map((f) => durationToMinutes(f.duration));
 
-  // Try to pull real flights (with risk fields) from the live backend.
-  // If anything fails or returns empty, keep existing MOCK behavior so
-  // the page never regresses.
-  const liveFlights = await fetchLiveFlights();
-  if (Array.isArray(liveFlights) && liveFlights.length) {
-    // Replace in-memory sources with live data, but keep MOCK_FLIGHTS name
-    // untouched (it's `const`). We swap contents of currentFlights/filteredFlights
-    // and also update the module-level list the filter uses.
-    MOCK_FLIGHTS.length = 0;
-    for (const f of liveFlights) MOCK_FLIGHTS.push(f);
-    filteredFlights = [...MOCK_FLIGHTS];
+  const bestPrice = bestOf(prices, "min");
+  const bestSafety = bestOf(safeties, "max");
+  const bestCo2 = bestOf(co2s, "min");
+  const bestDur = bestOf(durations, "min");
+
+  function cell(val, isBest) {
+    return `${safe(val)}${isBest ? `<span class="best-tag">Best</span>` : ""}`;
   }
 
-  populateAirlineFilters();
+  const cols = [0, 1, 2].map((i) => chosen[i]).filter(Boolean);
 
-  // Initial render
-  const sortBy = document.getElementById("sortSelect").value;
-  currentFlights = sortFlights(filteredFlights, sortBy);
-  renderFlights(currentFlights);
+  const header = `
+    <div class="compare-table">
+      <div class="thead">
+        <div>Category</div>
+        ${cols.map((f) => `<div>${safe(f.airline)}</div>`).join("")}
+        ${cols.length < 3 ? `<div style="display:${cols.length === 2 ? "block" : "none"}"></div>` : ""}
+      </div>
+  `;
 
-  // Event listeners
-  document.getElementById("sortSelect").addEventListener("change", () => {
-    currentFlights = sortFlights(filteredFlights, document.getElementById("sortSelect").value);
-    renderFlights(currentFlights);
+  const rows = [
+    ["Price", ...cols.map((f) => cell(`$${f.price}`, f.price === bestPrice))],
+    ["Safety Rating", ...cols.map((f) => cell(`${f.safety}%`, f.safety === bestSafety))],
+    ["CO₂ Emissions", ...cols.map((f) => cell(`${f.co2} kg`, f.co2 === bestCo2))],
+    ["Duration", ...cols.map((f) => cell(`${f.duration}`, durationToMinutes(f.duration) === bestDur))],
+    ["Stops", ...cols.map((f) => `${f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops")}`)],
+    ["Aircraft", ...cols.map((f) => f.aircraft)],
+    ["Departure", ...cols.map((f) => f.depart)],
+    ["Arrival", ...cols.map((f) => f.arrive)],
+    ["Weather Score", ...cols.map((f) => `${f.weather}%`)],
+    ["Seat Availability", ...cols.map((f) => `${f.seats}%`)]
+  ];
+
+  const body = rows.map((r) => {
+    const [cat, ...vals] = r;
+    return `
+      <div class="trow">
+        <div><b>${safe(cat)}</b></div>
+        ${vals.map((v) => `<div>${v}</div>`).join("")}
+        ${vals.length < 3 ? `<div style="display:${vals.length === 2 ? "block" : "none"}"></div>` : ""}
+      </div>
+    `;
+  }).join("");
+
+  $("compareTableWrap").innerHTML = header + body + `</div>`;
+}
+
+function renderOppCards(filtered) {
+  const cheapest = filtered.length ? Math.min(...filtered.map((f) => f.price)) : null;
+  $("oppCards").innerHTML = filtered.map((f) => flightCardHTML(f, true, cheapest)).join("");
+}
+
+function renderOpp() {
+  const filtered = applyFilters(flights);
+  renderStats(filtered);
+  renderOppAvailableRows(filtered);
+  renderCompareCards(filtered);
+  renderComparisonTable(filtered);
+  renderOppCards(filtered);
+}
+
+function setView(view) {
+  state.view = view;
+
+  document.querySelectorAll(".tab").forEach((btn) => {
+    const is = btn.dataset.view === view;
+    btn.classList.toggle("active", is);
+    btn.setAttribute("aria-selected", is ? "true" : "false");
   });
 
-  document.getElementById("applyFilters").addEventListener("click", filterFlights);
-  document.getElementById("clearFilters").addEventListener("click", () => {
-    document.getElementById("minPrice").value = "";
-    document.getElementById("maxPrice").value = "";
-    document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(cb => cb.checked = true);
-    filterFlights();
-  });
+  $("mapPanel").classList.toggle("hidden", view !== "map");
+  $("oppPanel").classList.toggle("hidden", view !== "opp");
+  $("listPanel").classList.toggle("hidden", !(view === "filters" || view === "rec"));
+  $("filterbar").classList.toggle("hidden", !(view === "filters" || view === "map"));
 
-  // Initialize recommendation module
-  if (window.RecommendationModule) {
-    window.RecommendationModule.initRecommendationUI();
-  }
-  
-  // Display recommendation
-  displayRecommendation();
+  rerender();
+}
 
-  updateCompareButton();
+function rerender() {
+  const filtered = applyFilters(flights);
+  $("flightCountPill").textContent = `${filtered.length} flights`;
+
+  if (state.view === "filters") renderList();
+  if (state.view === "rec") renderRecommendation();
+  if (state.view === "opp") renderOpp();
+  if (state.view === "map") renderMapView();
+}
+
+$("priceRange").addEventListener("input", (e) => {
+  state.maxPrice = Number(e.target.value);
+  $("priceRangeLabel").textContent = `$0 – $${state.maxPrice}`;
+  rerender();
 });
+
+$("minSafety").addEventListener("input", (e) => {
+  state.minSafety = Number(e.target.value);
+  $("minSafetyLabel").textContent = `${state.minSafety}%`;
+  rerender();
+});
+
+function stopsChanged() {
+  state.stopsAllowed = new Set();
+  if ($("stops0").checked) state.stopsAllowed.add(0);
+  if ($("stops1").checked) state.stopsAllowed.add(1);
+  if ($("stops2").checked) state.stopsAllowed.add(2);
+  rerender();
+}
+
+$("stops0").addEventListener("change", stopsChanged);
+$("stops1").addEventListener("change", stopsChanged);
+$("stops2").addEventListener("change", stopsChanged);
+
+$("sortBy").addEventListener("change", (e) => {
+  state.sortBy = e.target.value;
+  rerender();
+});
+
+$("clearFiltersBtn").addEventListener("click", () => {
+  state.maxPrice = 1000;
+  state.minSafety = 0;
+  state.stopsAllowed = new Set([0, 1, 2]);
+  state.sortBy = "price_asc";
+  syncFilterUI();
+  rerender();
+});
+
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.addEventListener("click", () => setView(btn.dataset.view));
+});
+
+$("flightSightBtn").addEventListener("click", () => {
+  window.location.href = "homePage.html";
+});
+
+async function initResultsPage() {
+  await loadLiveFlights();
+  syncFilterUI();
+  setView("filters");
+}
+
+initResultsPage();
