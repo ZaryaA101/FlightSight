@@ -137,7 +137,7 @@
                     <div class="card-content">
                         <div class="weather-grid">
                             <div class="weather-location">
-                                <p class="weather-location-title">Departure (New York)</p>
+                                <p class="weather-location-title" id="weatherDepartureTitle">Departure (New York)</p>
                                 <div class="weather-details">
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -146,7 +146,7 @@
                                             </svg>
                                             Temperature
                                         </span>
-                                        <span class="weather-item-value">72°F</span>
+                                        <span class="weather-item-value" id="weatherDepartureTemp">72°F</span>
                                     </div>
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -155,7 +155,7 @@
                                             </svg>
                                             Precipitation
                                         </span>
-                                        <span class="weather-item-value">15%</span>
+                                        <span class="weather-item-value" id="weatherDeparturePrecip">15%</span>
                                     </div>
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -164,12 +164,12 @@
                                             </svg>
                                             Wind Speed
                                         </span>
-                                        <span class="weather-item-value">12 mph</span>
+                                        <span class="weather-item-value" id="weatherDepartureWind">12 mph</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="weather-location">
-                                <p class="weather-location-title">Arrival (Los Angeles)</p>
+                                <p class="weather-location-title" id="weatherArrivalTitle">Arrival (Los Angeles)</p>
                                 <div class="weather-details">
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -178,7 +178,7 @@
                                             </svg>
                                             Temperature
                                         </span>
-                                        <span class="weather-item-value">78°F</span>
+                                        <span class="weather-item-value" id="weatherArrivalTemp">78°F</span>
                                     </div>
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -187,7 +187,7 @@
                                             </svg>
                                             Precipitation
                                         </span>
-                                        <span class="weather-item-value">8%</span>
+                                        <span class="weather-item-value" id="weatherArrivalPrecip">8%</span>
                                     </div>
                                     <div class="weather-item">
                                         <span class="weather-item-label">
@@ -196,7 +196,7 @@
                                             </svg>
                                             Wind Speed
                                         </span>
-                                        <span class="weather-item-value">9 mph</span>
+                                        <span class="weather-item-value" id="weatherArrivalWind">9 mph</span>
                                     </div>
                                 </div>
                             </div>
@@ -205,7 +205,8 @@
                             <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            Overall Weather Score: 88% - Excellent conditions
+                            <span id="weatherOverallScore">Overall Weather Score: 88%</span>
+                            <span id="weatherSourceLabel"> - Open-Meteo</span>
                         </div>
                     </div>
                 </div>

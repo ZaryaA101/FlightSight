@@ -77,6 +77,136 @@ function getStoredDates() {
   return { departure: depart, return: ret };
 }
 
+function getStoredRoute() {
+  try {
+    const originRaw = localStorage.getItem("origin");
+    const destinationRaw = localStorage.getItem("destination");
+    if (!originRaw || !destinationRaw) return null;
+
+    const origin = JSON.parse(originRaw);
+    const destination = JSON.parse(destinationRaw);
+    return { origin, destination };
+  } catch {
+    return null;
+  }
+}
+
+function extractAirportCode(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    const nested = value.code || value.airport || value.iata || value.airportCode;
+    return extractAirportCode(nested);
+  }
+
+  const s = String(value).trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(s)) return s;
+
+  const m = s.match(/\b([A-Z]{3})\b/);
+  return m ? m[1] : "";
+}
+
+function normalizeDateForWeather(value, fallback = "") {
+  const raw = String(value || fallback || "").trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function getWeatherRequestParams() {
+  const strictFlight = getSelectedFlight();
+  const rawFlight = getStoredFlight();
+  const route = getStoredRoute();
+  const dates = getStoredDates();
+  const flight = rawFlight || strictFlight || {};
+
+  const origin =
+    extractAirportCode(flight.origin) ||
+    extractAirportCode(flight.startingAirport) ||
+    extractAirportCode(flight.departureAirport) ||
+    extractAirportCode(route?.origin?.code) ||
+    "";
+
+  const destination =
+    extractAirportCode(flight.destination) ||
+    extractAirportCode(flight.destinationAirport) ||
+    extractAirportCode(flight.arrivalAirport) ||
+    extractAirportCode(route?.destination?.code) ||
+    "";
+
+  const date =
+    normalizeDateForWeather(flight.date) ||
+    normalizeDateForWeather(flight.flightDate) ||
+    normalizeDateForWeather(flight.departureDate) ||
+    normalizeDateForWeather(flight.departureTime) ||
+    normalizeDateForWeather(dates.departure);
+
+  return { origin, destination, date };
+}
+
+function setTextById(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+}
+
+function applyWeatherToCard(payload) {
+  if (!payload || !payload.departure || !payload.arrival) return;
+
+  setTextById(
+    "weatherDepartureTitle",
+    `Departure (${payload.departure.city || payload.departure.airport || "Unknown"})`
+  );
+  setTextById(
+    "weatherArrivalTitle",
+    `Arrival (${payload.arrival.city || payload.arrival.airport || "Unknown"})`
+  );
+
+  setTextById("weatherDepartureTemp", `${Number(payload.departure.temperature ?? 0)}F`);
+  setTextById("weatherDeparturePrecip", `${Number(payload.departure.precipitation ?? 0)}%`);
+  setTextById("weatherDepartureWind", `${Number(payload.departure.windSpeed ?? 0)} mph`);
+
+  setTextById("weatherArrivalTemp", `${Number(payload.arrival.temperature ?? 0)}F`);
+  setTextById("weatherArrivalPrecip", `${Number(payload.arrival.precipitation ?? 0)}%`);
+  setTextById("weatherArrivalWind", `${Number(payload.arrival.windSpeed ?? 0)} mph`);
+
+  setTextById("weatherOverallScore", `Overall Weather Score: ${Number(payload.overallScore ?? 0)}%`);
+  setTextById("weatherSourceLabel", ` - ${payload.source || "Estimated fallback"}`);
+}
+
+async function refreshWeatherForecast() {
+  const { origin, destination, date } = getWeatherRequestParams();
+  if (!origin || !destination || !date) {
+    return;
+  }
+
+  const params = new URLSearchParams({ origin, destination, date });
+  const weatherUrl = `${API_BASE}/api/weather-forecast?${params.toString()}`;
+  console.log("[FlightSight] Request URL:", weatherUrl);
+
+  try {
+    const response = await fetch(weatherUrl);
+    if (!response.ok) {
+      console.error("[FlightSight] Weather forecast response error:", {
+        url: weatherUrl,
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return;
+    }
+
+    const payload = await response.json();
+    applyWeatherToCard(payload);
+  } catch (err) {
+    console.error("[FlightSight] Weather forecast request failed:", {
+      url: weatherUrl,
+      error: err,
+    });
+  }
+}
+
 /**
  * Try to inject route, flight, and dates into the Booking page UI.
  * This is defensive: it only updates elements if they exist.
@@ -322,6 +452,8 @@ async function refreshSeatWeather() {
   const seatPct = document.getElementById("seatPct");
   if (seatBar) seatBar.style.width = `${pct}%`;
   if (seatPct) seatPct.textContent = `${pct}%`;
+
+  await refreshWeatherForecast();
 }
 
 async function runAnalysis() {
@@ -573,4 +705,4 @@ if (btnSaveFlight) btnSaveFlight.addEventListener("click", saveSelectedFlight);
 ensurePriceAlertButton();
 
 // Auto-load a nice first view (optional)
-Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis()]);
+Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), refreshWeatherForecast()]);
