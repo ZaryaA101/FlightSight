@@ -521,23 +521,23 @@ function flightCardHTML(f, includeOppCallout = false, cheapestPrice = null) {
 
         <div class="badges">
           <div class="badge ${badgeClassForPct(f.safety)}">
-            <div class="l">🛡️ Safety</div>
+            <div class="l">Safety</div>
             <div class="v">${safe(f.safety)}%</div>
           </div>
           <div class="badge ${badgeClassForCo2(f.co2)}">
-            <div class="l">🌿 CO₂</div>
+            <div class="l">CO₂</div>
             <div class="v">${safe(f.co2)} kg</div>
           </div>
           <div class="badge blue">
-            <div class="l">☁️ Weather</div>
+            <div class="l">Weather</div>
             <div class="v">${safe(f.weather)}%</div>
           </div>
           <div class="badge blue">
-            <div class="l">💺 Seats</div>
+            <div class="l">Seats</div>
             <div class="v">${safe(f.seats)}%</div>
           </div>
           <div class="badge purple">
-            <div class="l">⭐ Score</div>
+            <div class="l">Score</div>
             <div class="v">${safe(f.score)}</div>
           </div>
         </div>

@@ -976,6 +976,223 @@ app.delete("/api/saved-flights/:id", async (req, res) => {
   }
 });
 
+const AIRPORT_WEATHER_LOOKUP = {
+  LGA: { city: "New York", latitude: 40.7769, longitude: -73.8740 },
+  SFO: { city: "San Francisco", latitude: 37.6213, longitude: -122.3790 },
+  ATL: { city: "Atlanta", latitude: 33.6407, longitude: -84.4277 },
+  BOS: { city: "Boston", latitude: 42.3656, longitude: -71.0096 },
+  LAX: { city: "Los Angeles", latitude: 33.9416, longitude: -118.4085 },
+  JFK: { city: "New York", latitude: 40.6413, longitude: -73.7781 },
+  ORD: { city: "Chicago", latitude: 41.9742, longitude: -87.9073 },
+  DFW: { city: "Dallas", latitude: 32.8998, longitude: -97.0403 },
+  DEN: { city: "Denver", latitude: 39.8561, longitude: -104.6737 },
+  MIA: { city: "Miami", latitude: 25.7959, longitude: -80.2870 },
+  SEA: { city: "Seattle", latitude: 47.4502, longitude: -122.3088 },
+  LAS: { city: "Las Vegas", latitude: 36.0840, longitude: -115.1537 },
+  CLT: { city: "Charlotte", latitude: 35.2140, longitude: -80.9431 },
+  PHX: { city: "Phoenix", latitude: 33.4342, longitude: -112.0116 },
+  EWR: { city: "Newark", latitude: 40.6895, longitude: -74.1745 },
+  IAD: { city: "Washington", latitude: 38.9531, longitude: -77.4565 },
+  DCA: { city: "Washington", latitude: 38.8512, longitude: -77.0402 },
+  DTW: { city: "Detroit", latitude: 42.2162, longitude: -83.3554 },
+  MSP: { city: "Minneapolis", latitude: 44.8848, longitude: -93.2223 },
+  PHL: { city: "Philadelphia", latitude: 39.8744, longitude: -75.2424 },
+};
+
+function normalizeAirportCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeDateToYMD(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function buildTargetDateTime(rawDate, ymd) {
+  const raw = String(rawDate || "").trim();
+  const hasTime = /T\d{2}:\d{2}/.test(raw) || /\d{2}:\d{2}/.test(raw);
+  if (!hasTime) {
+    return new Date(`${ymd}T12:00:00`);
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  const hm = raw.match(/(\d{2}):(\d{2})/);
+  if (!hm) return new Date(`${ymd}T12:00:00`);
+  return new Date(`${ymd}T${hm[1]}:${hm[2]}:00`);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function roundNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n);
+}
+
+function weatherSubScore(sample) {
+  const temp = Number(sample.temperature);
+  const precip = Number(sample.precipitation);
+  const wind = Number(sample.windSpeed);
+
+  const tempScore = Number.isFinite(temp) ? clamp(100 - Math.abs(temp - 70) * 2, 0, 100) : 60;
+  const precipScore = Number.isFinite(precip) ? clamp(100 - precip, 0, 100) : 60;
+  const windScore = Number.isFinite(wind) ? clamp(100 - wind * 2, 0, 100) : 60;
+
+  return Math.round((tempScore * 0.45) + (precipScore * 0.35) + (windScore * 0.20));
+}
+
+function buildOverallWeatherScore(departureSample, arrivalSample) {
+  const departureScore = weatherSubScore(departureSample);
+  const arrivalScore = weatherSubScore(arrivalSample);
+  return clamp(Math.round((departureScore + arrivalScore) / 2), 0, 100);
+}
+
+async function fetchOpenMeteoPoint(airportInfo, ymd, targetDate) {
+  const params = new URLSearchParams({
+    latitude: String(airportInfo.latitude),
+    longitude: String(airportInfo.longitude),
+    hourly: "temperature_2m,precipitation_probability,wind_speed_10m",
+    temperature_unit: "fahrenheit",
+    wind_speed_unit: "mph",
+    timezone: "auto",
+    start_date: ymd,
+    end_date: ymd,
+  });
+
+  const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Open-Meteo request failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const hourly = payload?.hourly;
+  if (!hourly || !Array.isArray(hourly.time) || !hourly.time.length) {
+    throw new Error("Open-Meteo hourly weather data unavailable for date.");
+  }
+
+  const targetTime = targetDate.getTime();
+  let nearestIndex = -1;
+  let nearestDelta = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < hourly.time.length; i += 1) {
+    const rowTime = new Date(hourly.time[i]).getTime();
+    if (!Number.isFinite(rowTime)) continue;
+    const delta = Math.abs(rowTime - targetTime);
+    if (delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestIndex = i;
+    }
+  }
+
+  if (nearestIndex < 0) {
+    throw new Error("Open-Meteo returned no parsable hourly timestamps.");
+  }
+
+  return {
+    temperature: roundNumber(hourly.temperature_2m?.[nearestIndex]),
+    precipitation: roundNumber(hourly.precipitation_probability?.[nearestIndex]),
+    windSpeed: roundNumber(hourly.wind_speed_10m?.[nearestIndex]),
+  };
+}
+
+function fallbackWeatherSample(airportCode, airportInfo, ymd) {
+  const month = Number(String(ymd || "").slice(5, 7)) || 6;
+  const seasonal = Math.sin(((month - 1) / 12) * Math.PI * 2);
+  const latFactor = Math.max(0, Math.abs(airportInfo.latitude) - 25) * 0.8;
+  const hash = Array.from(`${airportCode}|${ymd}`).reduce((acc, ch) => (acc + ch.charCodeAt(0)) % 97, 0);
+
+  const temperature = Math.round(72 + (seasonal * 14) - latFactor + ((hash % 9) - 4));
+  const precipitation = clamp(Math.round(20 + ((hash * 7) % 45)), 0, 100);
+  const windSpeed = clamp(Math.round(6 + ((hash * 5) % 18)), 0, 60);
+
+  return { temperature, precipitation, windSpeed };
+}
+
+app.get('/api/weather-forecast', async (req, res) => {
+  const origin = normalizeAirportCode(req.query.origin);
+  const destination = normalizeAirportCode(req.query.destination);
+  const rawDate = String(req.query.date || "").trim();
+  const ymd = normalizeDateToYMD(rawDate);
+
+  if (!origin || !destination || !ymd) {
+    return res.status(400).json({
+      error: "origin, destination, and date are required. Date must be YYYY-MM-DD or a valid datetime.",
+    });
+  }
+
+  const originInfo = AIRPORT_WEATHER_LOOKUP[origin];
+  const destinationInfo = AIRPORT_WEATHER_LOOKUP[destination];
+  if (!originInfo || !destinationInfo) {
+    return res.status(400).json({
+      error: "Unsupported airport code. Add the airport to AIRPORT_WEATHER_LOOKUP.",
+    });
+  }
+
+  const targetDate = buildTargetDateTime(rawDate || ymd, ymd);
+
+  try {
+    const [departureSample, arrivalSample] = await Promise.all([
+      fetchOpenMeteoPoint(originInfo, ymd, targetDate),
+      fetchOpenMeteoPoint(destinationInfo, ymd, targetDate),
+    ]);
+
+    return res.json({
+      departure: {
+        airport: origin,
+        city: originInfo.city,
+        temperature: departureSample.temperature,
+        precipitation: departureSample.precipitation,
+        windSpeed: departureSample.windSpeed,
+      },
+      arrival: {
+        airport: destination,
+        city: destinationInfo.city,
+        temperature: arrivalSample.temperature,
+        precipitation: arrivalSample.precipitation,
+        windSpeed: arrivalSample.windSpeed,
+      },
+      overallScore: buildOverallWeatherScore(departureSample, arrivalSample),
+      source: "Open-Meteo",
+    });
+  } catch (err) {
+    console.warn("/api/weather-forecast using fallback:", err?.message || err);
+
+    const departureSample = fallbackWeatherSample(origin, originInfo, ymd);
+    const arrivalSample = fallbackWeatherSample(destination, destinationInfo, ymd);
+
+    return res.json({
+      departure: {
+        airport: origin,
+        city: originInfo.city,
+        temperature: departureSample.temperature,
+        precipitation: departureSample.precipitation,
+        windSpeed: departureSample.windSpeed,
+      },
+      arrival: {
+        airport: destination,
+        city: destinationInfo.city,
+        temperature: arrivalSample.temperature,
+        precipitation: arrivalSample.precipitation,
+        windSpeed: arrivalSample.windSpeed,
+      },
+      overallScore: buildOverallWeatherScore(departureSample, arrivalSample),
+      source: "Estimated fallback",
+    });
+  }
+});
+
 //Seat + Weather
 app.get("/seatweather", (req, res) => {
   res.json({ seat_status: "Available", weather: "Clear" });
