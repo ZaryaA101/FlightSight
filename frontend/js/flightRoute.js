@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function loadCSV() {
-    const response = await fetch("/data/airports_list.csv");
+    const response = await fetch("/backend/data/airports_list.csv");
     const csvText = await response.text();
 
     const rows = csvText.split("\n").slice(1);

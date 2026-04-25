@@ -149,6 +149,14 @@ h1 {
     height: 1rem;
 }
 
+.signout {
+  padding: 6px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  background: white;
+}
+
 /* Main Container */
 .main-container {
     max-width: 80rem;
@@ -878,3 +886,4 @@ h1 {
 .price-alert-status--success { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
 .price-alert-status--warn    { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 #btnPriceAlert { margin-left: 0.5rem; }
+}
