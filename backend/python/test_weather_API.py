@@ -77,7 +77,6 @@ def get_route_weather(origin, dest, date):
     return result
 
 
-# ================= TEST =================
 if __name__ == "__main__":
 
     origin = "LAX"

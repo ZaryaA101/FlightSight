@@ -187,8 +187,6 @@ def seat_label(avg_seats):
     else:
         return "Very limited"
 
-
-# ================= TEST =================
 if __name__ == "__main__":
 
     origin = "LAX"
