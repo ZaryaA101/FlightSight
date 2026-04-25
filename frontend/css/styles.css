@@ -313,12 +313,12 @@ body {
 }
 
 input.selected-departure {
-  background-color: #d4edda; /* light green */
+  background-color: #d4edda;
   font-weight: bold;
 }
 
 input.selected-destination {
-  background-color: #cce5ff; /* light blue */
+  background-color: #cce5ff;
   font-weight: bold;
 }
 
@@ -361,12 +361,11 @@ input.selected-destination {
 
 /* Right side: Calendar & search button */
 .calendar-right-section {
-  flex: 2; /* bigger than left */
+  flex: 2;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-
 
 .card.calendar-card {
   height: 600px;
@@ -452,7 +451,6 @@ input.selected-destination {
   }
 }
 
-
 /* Mobile */
 @media (max-width: 980px){
   .fs-layout{grid-template-columns: 1fr}
@@ -462,7 +460,7 @@ input.selected-destination {
 
 @media (max-width: 1366px) {
   .card.calendar-card {
-  height: 420px;
-  overflow-y: auto;
-}
+    height: 420px;
+    overflow-y: auto;
+  }
 }

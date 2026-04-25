@@ -14,6 +14,7 @@ const bcrypt = require("bcryptjs");           // For hashing passwords for priva
 // Create Express app
 const app = express();
 app.use(express.static(path.join(__dirname, "frontend")));
+app.use("/data", express.static(path.join(__dirname, "backend/data")));
 
 // Connect to Neon database using DATABASE_URL from .env file 
 const sql = neon(process.env.DATABASE_URL);
@@ -27,7 +28,6 @@ app.use(express.static(path.join(__dirname, "frontend")));
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "frontend", "html", "login.html"));
 });
-
 
 // Assistant returns simple flight-related answers
 app.post("/api/assistant", (req, res) => {
@@ -493,3 +493,5 @@ app.get("/api/demand-heatmap", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+

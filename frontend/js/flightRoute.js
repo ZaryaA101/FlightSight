@@ -21,28 +21,8 @@ function loadGoogleMaps() {
 // ================= MAIN =================
 document.addEventListener("DOMContentLoaded", async () => {
   const continueBtn = document.querySelector(".continue-btn");
-  const airportElements = document.querySelectorAll("#airportList li");
   const originInput = document.getElementById("origin");
   const destinationInput = document.getElementById("destination");
-
-  if (airportElements.length) {
-    let selectedOrigin = null;
-    let selectedDestination = null;
-    let selecting = "origin";
-
-    airportElements.forEach((airportEl) => {
-      airportEl.addEventListener("click", () => {
-        const code = airportEl.dataset.code;
-        if (!code) return;
-
-        if (selecting === "origin") {
-          selectedOrigin = code;
-          selecting = "destination";
-          if (originInput) originInput.value = code;
-        } else {
-          selectedDestination = code;
-          selecting = "origin";
-          if (destinationInput) destinationInput.value = code;
   const airportList = document.getElementById("airportList");
 
   let airports = [];
@@ -52,19 +32,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let markers = {};
   let map;
-
   let routeLine = null;
 
   // ================= LOAD CSV =================
-  async function loadCSV() {
-    const response = await fetch("../../backend/data/airports_list.csv");
-    const csvText = await response.text();
+async function loadCSV() {
+  try {
+    const response = await fetch("../backend/data/airports_list.csv");
+    console.log("airport csv status:", response.status);
 
+    if (!response.ok) throw new Error("CSV not found");
+
+    const csvText = await response.text();
     const rows = csvText.split("\n").slice(1);
 
     rows.forEach((row) => {
       const cols = row.split(",");
-      if (cols.length < 4) return;
+      if (cols.length < 3) return; // FIX: was < 4
 
       const airport = {
         code: cols[0].trim(),
@@ -74,16 +57,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       airports.push(airport);
     });
+  } catch (error) {
+    console.log("CSV failed, using airportCoords instead");
 
-    airports.sort((a, b) => a.city.localeCompare(b.city));
-
-    airports.forEach((airport) => {
-      const li = document.createElement("li");
-      li.dataset.code = airport.code;
-      li.textContent = `${airport.code} - ${airport.city}`;
-      airportList.appendChild(li);
-    });
+    // FIX: fallback so the Available Airports list still shows up
+    airports = Object.keys(airportCoords).map((code) => ({
+      code: code,
+      name: code,
+      city: code,
+    }));
   }
+
+  airports.sort((a, b) => a.city.localeCompare(b.city));
+
+  airportList.innerHTML = "";
+
+  airports.forEach((airport) => {
+    const li = document.createElement("li");
+    li.dataset.code = airport.code;
+    li.textContent = `${airport.code} - ${airport.city}`;
+    airportList.appendChild(li);
+  });
+}
 
   // ================= AUTOCOMPLETE =================
   function setupAutocomplete(inputId, suggestionId, onSelect) {
@@ -104,7 +99,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const matches = airports.filter(
         (a) =>
           a.name.toLowerCase().includes(value) ||
-          a.code.toLowerCase().includes(value)
+          a.code.toLowerCase().includes(value) ||
+          a.city.toLowerCase().includes(value)
       );
 
       matches.forEach((airport) => {
@@ -150,6 +146,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     JFK: { lat: 40.6413, lng: -73.7781 },
   };
 
+  // FIX: fallback so map/list clicks still work even if airport is not found in CSV
+  function getAirportByCode(code) {
+    return (
+      airports.find((a) => a.code === code) || {
+        code: code,
+        name: code,
+        city: code,
+      }
+    );
+  }
+
   // ================= MAP =================
   function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
@@ -166,8 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       marker.addListener("click", () => {
-        const airport = airports.find((a) => a.code === code);
-        if (!airport) return;
+        const airport = getAirportByCode(code); // FIX
 
         if (clickCount === 0) setOrigin(airport);
         else setDestination(airport);
@@ -176,6 +182,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       markers[code] = marker;
     });
   }
+
+  // FIX: make initMap global if Google callback is used in HTML
+  window.initMap = initMap;
 
   // ================= ROUTE =================
   function createCurvedPath(start, end, curvature = 0.3, points = 120) {
@@ -211,6 +220,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const start = airportCoords[selectedOrigin.code];
     const end = airportCoords[selectedDestination.code];
 
+    if (!start || !end) return; // FIX: avoid errors if coords missing
+
     if (routeLine) routeLine.setMap(null);
 
     routeLine = new google.maps.Polyline({
@@ -240,10 +251,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedOrigin = airport;
     clickCount = 1;
 
-    const input = document.getElementById("origin");
-    input.value = airport.name;
-    input.classList.add("selected-departure");
-    input.classList.remove("selected-destination");
+    originInput.value = airport.name;
+    originInput.classList.add("selected-departure");
+    originInput.classList.remove("selected-destination");
 
     updateMarkerColors();
     drawRoute();
@@ -253,10 +263,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     selectedDestination = airport;
     clickCount = 0;
 
-    const input = document.getElementById("destination");
-    input.value = airport.name;
-    input.classList.add("selected-destination");
-    input.classList.remove("selected-departure");
+    destinationInput.value = airport.name;
+    destinationInput.classList.add("selected-destination");
+    destinationInput.classList.remove("selected-departure");
 
     updateMarkerColors();
     drawRoute();
@@ -275,14 +284,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
 
-        console.log("Origin:", selectedOrigin);
-        console.log("Destination:", selectedDestination);
-
-        localStorage.setItem("origin", selectedOrigin);
-        localStorage.setItem("destination", selectedDestination);
-
-        window.location.href = "../html/booking.html";
-      });
     if (selectedDestination && markers[selectedDestination.code]) {
       markers[selectedDestination.code].setIcon(
         "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
@@ -291,17 +292,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateClickCountFromInputs() {
-    const originInput = document.getElementById("origin").value.trim();
-    const destInput = document.getElementById("destination").value.trim();
+    const originInputValue = originInput.value.trim();
+    const destInputValue = destinationInput.value.trim();
 
-    if (!originInput && !destInput) {
+    if (!originInputValue && !destInputValue) {
       selectedOrigin = null;
       selectedDestination = null;
       clickCount = 0;
-    } else if (originInput && !destInput) {
+    } else if (originInputValue && !destInputValue) {
       selectedDestination = null;
       clickCount = 1;
-    } else if (!originInput && destInput) {
+    } else if (!originInputValue && destInputValue) {
       selectedOrigin = null;
       clickCount = 0;
     } else {
@@ -309,38 +310,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     updateMarkerColors();
+    drawRoute(); // FIX: update route when inputs change
   }
 
   // ================= INPUT LISTENERS =================
-  document.getElementById("origin").addEventListener("input", () => {
-    if (!document.getElementById("origin").value.trim()) {
+  originInput.addEventListener("input", () => {
+    if (!originInput.value.trim()) {
       selectedOrigin = null;
-      document
-        .getElementById("origin")
-        .classList.remove("selected-departure");
+      originInput.classList.remove("selected-departure");
     }
     updateClickCountFromInputs();
   });
 
-  document
-    .getElementById("destination")
-    .addEventListener("input", () => {
-      if (!document.getElementById("destination").value.trim()) {
-        selectedDestination = null;
-        document
-          .getElementById("destination")
-          .classList.remove("selected-destination");
-      }
-      updateClickCountFromInputs();
-    });
+  destinationInput.addEventListener("input", () => {
+    if (!destinationInput.value.trim()) {
+      selectedDestination = null;
+      destinationInput.classList.remove("selected-destination");
+    }
+    updateClickCountFromInputs();
+  });
 
   // ================= LIST CLICK =================
   airportList.addEventListener("click", (e) => {
     const li = e.target.closest("li");
     if (!li) return;
 
-    const airport = airports.find((a) => a.code === li.dataset.code);
-    if (!airport) return;
+    const airport = getAirportByCode(li.dataset.code); // FIX
 
     clickCount === 0 ? setOrigin(airport) : setDestination(airport);
   });
@@ -367,6 +362,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupAutocomplete("origin", "originSuggestions", setOrigin);
   setupAutocomplete("destination", "destinationSuggestions", setDestination);
 
-  await Promise.all([loadGoogleMaps(), loadCSV()]);
+  // FIX: only load CSV here because Google Maps is already loaded in HTML
+  await loadCSV();
+
+  // FIX: initialize map after airport data is loaded
   initMap();
 });
