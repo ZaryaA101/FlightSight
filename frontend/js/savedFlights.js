@@ -101,6 +101,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         flight.totalFare <= threshold;
       if (isTriggered) triggeredCount += 1;
 
+      let addOns = null;
+      try {
+        if (flight.addOnsSummary) addOns = JSON.parse(flight.addOnsSummary);
+      } catch {}
+
+      const addOnsHtml = addOns ? `
+        <div class="info-box seat" style="grid-column: 1 / -1; font-size: 0.85rem;">
+          <strong>Selected Add-ons</strong><br/>
+          Carry-on: ${addOns.carryOnBags} bag(s) ${addOns.carryOnCost > 0 ? `($${addOns.carryOnCost})` : "(Free)"}
+          &nbsp;|&nbsp;
+          Checked: ${addOns.checkedBags} bag(s) ${addOns.checkedCost > 0 ? `($${addOns.checkedCost})` : "(None)"}
+          ${addOns.wifi ? `&nbsp;|&nbsp; WiFi ${addOns.wifiCost > 0 ? `($${addOns.wifiCost})` : "(Free)"}` : ""}
+          ${addOns.meal ? `&nbsp;|&nbsp; Meal ($${addOns.mealCost})` : ""}
+          ${addOns.insurance ? `&nbsp;|&nbsp; Insurance ($${addOns.insuranceCost})` : ""}
+        </div>
+      ` : "";
+
       card.innerHTML = `
         <div class="flight-top">
           <div>
@@ -151,6 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${flight.emissions || "N/A"}<br />
             ${flight.weather || "N/A"}
           </div>
+          ${addOnsHtml}
         </div>
 
         ${flight.add_ons_summary ? `
@@ -162,7 +180,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         <div class="actions">
           <div class="price">
-            ${typeof flight.totalFare === "number" ? `$${flight.totalFare.toFixed(2)}` : "$---"}
+            ${typeof addOns?.totalWithAddOns === "number"
+              ? `$${addOns.totalWithAddOns.toFixed(2)}`
+              : typeof flight.totalFare === "number"
+              ? `$${flight.totalFare.toFixed(2)}`
+              : "$---"}
             <span style="font-size: 12px; color: #6b7280">per person</span>
           </div>
 

@@ -215,6 +215,7 @@ function normalizeSavedFlight(input) {
     weather: input.weather || null,
     addOnsSummary: String(input.add_ons_summary || input.addOnsSummary || "").trim() || null,
     isPredicted: Boolean(input.isPredicted),
+    addOnsSummary: input.addOnsSummary || null,
   };
 }
 
@@ -240,6 +241,7 @@ function buildSavedFlightHash(flight) {
         flight.emissions,
         flight.weather,
         flight.isPredicted,
+        flight.addOnsSummary,
       ])
     )
     .digest("hex");
@@ -267,6 +269,7 @@ function mapSavedFlightRow(row) {
     weather: row.weather,
     add_ons_summary: row.add_ons_summary,
     isPredicted: Boolean(row.is_predicted),
+    addOnsSummary: row.add_ons_summary || null,
   };
 }
 
@@ -292,8 +295,8 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
-      add_ons_summary,
-      is_predicted
+      is_predicted,
+      add_ons_summary
     )
     VALUES (
       ${flightHash},
@@ -313,8 +316,8 @@ async function insertSavedFlight(flight) {
       ${flight.confidence},
       ${flight.emissions},
       ${flight.weather},
-      ${flight.addOnsSummary},
-      ${flight.isPredicted}
+      ${flight.isPredicted},
+      ${flight.addOnsSummary}
     )
     ON CONFLICT (flight_hash) DO UPDATE
     SET add_ons_summary = EXCLUDED.add_ons_summary
@@ -338,8 +341,8 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
-        add_ons_summary,
-      is_predicted;
+      is_predicted,
+      add_ons_summary;
   `;
 
   if (inserted.length > 0) {
@@ -366,8 +369,8 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
-      add_ons_summary,
-      is_predicted
+      is_predicted,
+      add_ons_summary
     FROM saved_flights
     WHERE flight_hash = ${flightHash}
     LIMIT 1;
@@ -400,8 +403,8 @@ async function listSavedFlights() {
       confidence,
       emissions,
       weather,
-      add_ons_summary,
-      is_predicted
+      is_predicted,
+      add_ons_summary
     FROM saved_flights
     ORDER BY created_at DESC, id DESC;
   `;
@@ -430,8 +433,8 @@ async function getSavedFlightById(id) {
       confidence,
       emissions,
       weather,
-      add_ons_summary,
-      is_predicted
+      is_predicted,
+      add_ons_summary
     FROM saved_flights
     WHERE id = ${id}
     LIMIT 1;
@@ -926,9 +929,9 @@ app.get("/api/flights/predict", async (req, res) => {
 app.post("/api/saved-flights", async (req, res) => {
   try {
     const payload = req.body?.selectedFlight || req.body;
-    console.log("[FlightSight] POST /api/saved-flights add_ons_summary BEFORE normalize:", payload?.add_ons_summary || payload?.addOnsSummary || "(missing)");
+    console.log("[Server] incoming addOnsSummary:", payload.addOnsSummary);
     const normalized = normalizeSavedFlight(payload);
-    console.log("[FlightSight] POST /api/saved-flights add_ons_summary AFTER normalize:", normalized?.addOnsSummary || "(missing)");
+    console.log("[Server] normalized addOnsSummary:", normalized.addOnsSummary);
 
     if (!normalized) {
       return res.status(400).json({
