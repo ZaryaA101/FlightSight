@@ -517,7 +517,8 @@ function selectFlight(flightId) {
   } : flight;
   
   console.log("[FlightSight] SELECTING FLIGHT from flightResults.js:", payload);
-  localStorage.setItem("selectedFlight", JSON.stringify(payload));
+  localStorage.setItem("selectedFlight", JSON.stringify(payload))
+  localStorage.setItem("bookingReferrer", "flightResults.html");;
   window.location.href = "Booking.html";
 }
 
