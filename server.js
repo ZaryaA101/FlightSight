@@ -461,10 +461,32 @@ app.get("/emissions", async (req, res) => {
   const origin = (req.query.origin || "").toString().trim().toUpperCase();
   const destination = (req.query.destination || "").toString().trim().toUpperCase();
   const requestedAirline = (req.query.airline || "").toString().trim().toLowerCase();
+  const requestedStopsRaw = Number(req.query.stops);
+  const requestedStops = Number.isFinite(requestedStopsRaw) ? requestedStopsRaw : null;
+
+  function getAirlineFactor(airlineName) {
+    const name = String(airlineName || "").toLowerCase();
+    if (name.includes("jetblue")) return 0.95;
+    if (name.includes("southwest")) return 0.98;
+    if (name.includes("delta")) return 0.97;
+    if (name.includes("united")) return 1.00;
+    if (name.includes("american")) return 1.02;
+    return 1.00;
+  }
+
+  function getStopsFactor(stops) {
+    const count = Number(stops);
+    if (!Number.isFinite(count) || count <= 0) return 1.00;
+    if (count === 1) return 1.08;
+    return 1.15;
+  }
 
   const fallbackCo2 = Math.floor(Math.random() * (320 - 180 + 1)) + 180;
   let co2 = fallbackCo2;
   let airline = "Unknown";
+  let baseCo2 = null;
+  let airlineFactor = 1.00;
+  let stopsFactor = getStopsFactor(requestedStops);
 
   try {
     const csvPath = path.join(__dirname, "backend", "data", "flights_sample.csv");
@@ -536,18 +558,40 @@ app.get("/emissions", async (req, res) => {
       // Convert miles to km before applying kg CO2 per km factor.
       const distanceKm = distance * 1.609;
       if (Number.isFinite(distanceKm) && distanceKm > 0) {
-        co2 = Math.round(distanceKm * 0.09);
+        baseCo2 = distanceKm * 0.09;
       }
 
       airline = (selectedColumns[airlineIdx] || "Unknown").trim() || "Unknown";
+
+      const effectiveAirline = requestedAirline || airline;
+      airlineFactor = getAirlineFactor(effectiveAirline);
+      stopsFactor = getStopsFactor(requestedStops);
+
+      if (baseCo2 != null) {
+        co2 = Math.round(baseCo2 * airlineFactor * stopsFactor);
+      }
     }
 
     console.log("Emissions calculated for", origin || "N/A", "->", destination || "N/A", ":", co2, "kg");
-    return res.json({ co2, airline });
+    return res.json({
+      co2,
+      airline,
+      baseCo2: baseCo2 == null ? null : Number(baseCo2.toFixed(2)),
+      airlineFactor,
+      stopsFactor,
+      finalCo2: co2,
+    });
   } catch (err) {
     console.error("GET /emissions error:", err);
     console.log("Emissions calculated for", origin || "N/A", "->", destination || "N/A", ":", co2, "kg");
-    return res.json({ co2, airline });
+    return res.json({
+      co2,
+      airline,
+      baseCo2: null,
+      airlineFactor,
+      stopsFactor,
+      finalCo2: co2,
+    });
   }
 });
 

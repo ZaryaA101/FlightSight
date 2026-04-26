@@ -397,6 +397,119 @@ async function loadLiveFlights() {
   }
 }
 
+function getFlightMetricRequestParams(flight) {
+  const { origin: fallbackOrigin, destination: fallbackDestination, departureDate: fallbackDepartureDate } = getPredictRequestValues();
+  const origin = normalizeApiCode(flight?._predictShape?.origin || flight?.departCode, fallbackOrigin);
+  const destination = normalizeApiCode(flight?._predictShape?.destination || flight?.arriveCode, fallbackDestination);
+  const airline = String(flight?.airline || flight?._predictShape?.airline || "").trim();
+  const stops = Number(flight?._predictShape?.stops ?? flight?.stops);
+  const departureDate = String(flight?._predictShape?.departureDate || fallbackDepartureDate || "").slice(0, 10);
+
+  return {
+    origin,
+    destination,
+    airline,
+    stops: Number.isFinite(stops) ? stops : 0,
+    departureDate,
+  };
+}
+
+async function applyBackendMetricsToFlights() {
+  const emissionsCache = new Map();
+  const weatherCache = new Map();
+
+  await Promise.all(
+    flights.map(async (flight) => {
+      const params = getFlightMetricRequestParams(flight);
+      let usedCo2Fallback = false;
+      let usedWeatherFallback = false;
+
+      if (params.origin && params.destination) {
+        const emissionsQuery = new URLSearchParams({
+          origin: params.origin,
+          destination: params.destination,
+          airline: params.airline,
+          stops: String(params.stops),
+        });
+        if (params.departureDate) {
+          emissionsQuery.set("date", params.departureDate);
+        }
+        const emissionsUrl = `${API_BASE_RESULTS}/emissions?${emissionsQuery.toString()}`;
+
+        try {
+          console.log("[FlightSight] CO2 request for flight", flight.id, emissionsUrl);
+          let emissionsPayload;
+          if (emissionsCache.has(emissionsUrl)) {
+            emissionsPayload = emissionsCache.get(emissionsUrl);
+          } else {
+            const emissionsRes = await fetch(emissionsUrl);
+            if (!emissionsRes.ok) throw new Error(`/emissions failed: ${emissionsRes.status}`);
+            emissionsPayload = await emissionsRes.json();
+            emissionsCache.set(emissionsUrl, emissionsPayload);
+          }
+          console.log("[FlightSight] CO2 response for flight", flight.id, emissionsPayload);
+
+          const backendCo2 = Number(emissionsPayload?.finalCo2 ?? emissionsPayload?.co2);
+          if (Number.isFinite(backendCo2)) {
+            flight.co2 = backendCo2;
+          } else {
+            usedCo2Fallback = true;
+          }
+        } catch (err) {
+          usedCo2Fallback = true;
+          console.warn("[FlightSight] CO2 fallback used for flight", flight.id, err);
+        }
+      } else {
+        usedCo2Fallback = true;
+      }
+
+      if (params.origin && params.destination && params.departureDate) {
+        const weatherQuery = new URLSearchParams({
+          origin: params.origin,
+          destination: params.destination,
+          date: params.departureDate,
+        });
+        const weatherUrl = `${API_BASE_RESULTS}/api/weather-forecast?${weatherQuery.toString()}`;
+
+        try {
+          console.log("[FlightSight] weather request for flight", flight.id, weatherUrl);
+          let weatherPayload;
+          if (weatherCache.has(weatherUrl)) {
+            weatherPayload = weatherCache.get(weatherUrl);
+          } else {
+            const weatherRes = await fetch(weatherUrl);
+            if (!weatherRes.ok) throw new Error(`/api/weather-forecast failed: ${weatherRes.status}`);
+            weatherPayload = await weatherRes.json();
+            weatherCache.set(weatherUrl, weatherPayload);
+          }
+          console.log("[FlightSight] weather response for flight", flight.id, weatherPayload);
+
+          const backendWeather = Number(weatherPayload?.overallScore);
+          if (Number.isFinite(backendWeather)) {
+            flight.weather = backendWeather;
+          } else {
+            usedWeatherFallback = true;
+          }
+        } catch (err) {
+          usedWeatherFallback = true;
+          console.warn("[FlightSight] weather fallback used for flight", flight.id, err);
+        }
+      } else {
+        usedWeatherFallback = true;
+      }
+
+      flight.score = computeUiScore(flight);
+      console.log("[FlightSight] backend metric fallback status", {
+        flightId: flight.id,
+        usedCo2Fallback,
+        usedWeatherFallback,
+        finalCo2: flight.co2,
+        finalWeather: flight.weather,
+      });
+    })
+  );
+}
+
 const state = {
   view: "filters",
   maxPrice: 1000,
@@ -491,6 +604,12 @@ function selectFlight(flightId) {
     flight: flight.flight
   } : flight;
   
+  console.log("[FlightSight] selectedFlight final metrics before navigation:", {
+    flightId: payload.legId || payload.id || flightId,
+    co2: payload.co2,
+    weather: payload.weather,
+    safety: payload.safety,
+  });
   console.log("[FlightSight] SELECTING FLIGHT from flightResults.js:", payload);
   localStorage.setItem("selectedFlight", JSON.stringify(payload));
   window.location.href = "Booking.html";
@@ -940,6 +1059,7 @@ $("flightSightBtn").addEventListener("click", () => {
 
 async function initResultsPage() {
   await loadLiveFlights();
+  await applyBackendMetricsToFlights();
   syncFilterUI();
   setView("filters");
 }

@@ -548,6 +548,7 @@ async function refreshEmissions() {
   const origin = selectedFlight?.origin || route?.origin?.code || "";
   const destination = selectedFlight?.destination || route?.destination?.code || "";
   const airline = selectedFlight?.airline || "";
+  const stops = Number(selectedFlight?.stops);
 
   console.log("Selected route:", origin || "N/A", "->", destination || "N/A");
 
@@ -560,6 +561,10 @@ async function refreshEmissions() {
 
     if (airline) {
       params.set("airline", airline);
+    }
+
+    if (Number.isFinite(stops)) {
+      params.set("stops", String(stops));
     }
 
     emissionsPath = `${API_BASE}/emissions?${params.toString()}`;
