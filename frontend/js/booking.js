@@ -412,6 +412,75 @@ function applySelectedFlightToBookingUI(flight) {
   applyAirlineBaggageAndServices(flight);
 }
 
+/**
+ * Restore add-ons from a saved flight's addOnsSummary
+ * Reads the JSON payload and restores UI controls + prices
+ */
+function restoreAddOnsFromFlight(flight) {
+  if (!flight || !flight.addOnsSummary) {
+    console.log("[FlightSight] No addOnsSummary found; skipping restore");
+    return;
+  }
+
+  let addOns = null;
+  try {
+    addOns = JSON.parse(flight.addOnsSummary);
+  } catch (err) {
+    console.error("[FlightSight] Failed to parse addOnsSummary:", err, flight.addOnsSummary);
+    return;
+  }
+
+  console.log("[FlightSight] Restoring add-ons from saved flight:", {
+    carryOnBags: addOns.carryOnBags,
+    checkedBags: addOns.checkedBags,
+    wifi: addOns.wifi,
+    meal: addOns.meal,
+    insurance: addOns.insurance,
+  });
+
+  // ─────── RESTORE BAGGAGE ────────
+  const carryOnCount = document.getElementById("carryOnCount");
+  const checkedCount = document.getElementById("checkedCount");
+
+  if (carryOnCount && Number.isFinite(addOns.carryOnBags)) {
+    const count = Number(addOns.carryOnBags);
+    carryOnCount.textContent = String(count);
+    currentCarryOnCount = count;
+    console.log("[FlightSight] Restored carry-on bags:", count);
+  }
+
+  if (checkedCount && Number.isFinite(addOns.checkedBags)) {
+    const count = Number(addOns.checkedBags);
+    checkedCount.textContent = String(count);
+    currentCheckedCount = count;
+    console.log("[FlightSight] Restored checked bags:", count);
+  }
+
+  // ─────── RESTORE SERVICES ────────
+  const wifiEl = document.querySelector("[data-service='wifi']");
+  const mealEl = document.querySelector("[data-service='meal']");
+  const insuranceEl = document.querySelector("[data-service='insurance']");
+
+  if (wifiEl && addOns.wifi === true) {
+    wifiEl.classList.add("service-selected");
+    console.log("[FlightSight] Restored WiFi service");
+  }
+
+  if (mealEl && addOns.meal === true) {
+    mealEl.classList.add("service-selected");
+    console.log("[FlightSight] Restored Meal service");
+  }
+
+  if (insuranceEl && addOns.insurance === true) {
+    insuranceEl.classList.add("service-selected");
+    console.log("[FlightSight] Restored Insurance service");
+  }
+
+  // ─────── RECALCULATE TOTAL ────────
+  console.log("[FlightSight] Recalculating total after add-ons restore");
+  recalculateTotal();
+}
+
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[FlightSight] Booking page DOMContentLoaded");
@@ -422,6 +491,14 @@ document.addEventListener("DOMContentLoaded", () => {
     applySelectedFlightToBookingUI(selectedFlight);
     window.flightSightSelectedFlight = selectedFlight;
     console.log("[FlightSight] Applied selectedFlight to UI");
+    
+    // If flight has saved add-ons, restore them to the UI
+    if (selectedFlight.addOnsSummary) {
+      console.log("[FlightSight] Flight has saved add-ons, restoring...");
+      // Delay restore slightly to ensure baggage/services UI is rendered
+      setTimeout(() => restoreAddOnsFromFlight(selectedFlight), 50);
+    }
+    
     return;
   }
   
@@ -431,6 +508,14 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[FlightSight] Using raw stored flight:", rawFlight);
     applySelectedFlightToBookingUI(rawFlight);
     window.flightSightSelectedFlight = rawFlight;
+    
+    // If flight has saved add-ons, restore them to the UI
+    if (rawFlight.addOnsSummary) {
+      console.log("[FlightSight] Flight has saved add-ons, restoring...");
+      // Delay restore slightly to ensure baggage/services UI is rendered
+      setTimeout(() => restoreAddOnsFromFlight(rawFlight), 50);
+    }
+    
     return;
   }
 
@@ -896,6 +981,14 @@ Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), ref
 
 
 // BAGGAGE AND ADDITIONAL SERVICES
+const DEFAULT_AIRLINE_DATA = {
+  add_carryOn: 0, max_carryOn: 1,
+  add_checkedIn_1st: 50, add_checkedIn_2nd: 60, max_checkedIn: 10,
+  hasWifi: true, wifi_cost: 15,
+  premium_meal_cost: 25,
+  travel_insurance_cost: 45
+};
+
 const AIRLINE_DATA = {
   "Delta": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 25 },
   "Alaska Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 10, hasWifi: true, wifi_cost: 8, premium_meal_cost: 12, travel_insurance_cost: 20 },
@@ -914,19 +1007,30 @@ const AIRLINE_DATA = {
 };
 
 function getAirlineData(airlineName) {
-  if (!airlineName) return null;
+  if (!airlineName) {
+    console.log("[FlightSight] getAirlineData: no airline name, using defaults");
+    return DEFAULT_AIRLINE_DATA;
+  }
   // Try exact match first, then partial
-  if (AIRLINE_DATA[airlineName]) return AIRLINE_DATA[airlineName];
+  if (AIRLINE_DATA[airlineName]) {
+    console.log("[FlightSight] getAirlineData: found exact match for airline:", airlineName);
+    return AIRLINE_DATA[airlineName];
+  }
   const key = Object.keys(AIRLINE_DATA).find(k =>
     airlineName.toLowerCase().includes(k.toLowerCase()) ||
     k.toLowerCase().includes(airlineName.toLowerCase())
   );
-  return key ? AIRLINE_DATA[key] : null;
+  if (key) {
+    console.log("[FlightSight] getAirlineData: found partial match for airline:", airlineName, "->", key);
+    return AIRLINE_DATA[key];
+  }
+  console.log("[FlightSight] getAirlineData: no match found for airline:", airlineName, "using fallback defaults");
+  return DEFAULT_AIRLINE_DATA;
 }
 
 function applyAirlineBaggageAndServices(flight) {
   const data = getAirlineData(flight.airline);
-  if (!data) return;
+  console.log("[FlightSight] applyAirlineBaggageAndServices: airline=", flight.airline, "data=", data);
 
   // ---- BAGGAGE ----
   const baggageContent = document.getElementById("baggageSection");
@@ -1015,7 +1119,11 @@ function applyAirlineBaggageAndServices(flight) {
 
   // ---- ADDITIONAL SERVICES ----
   const servicesContent = document.getElementById("servicesSection");
-  if (!servicesContent) return;
+  if (!servicesContent) {
+    console.error("[FlightSight] servicesSection container NOT found!");
+    return;
+  }
+  console.log("[FlightSight] servicesSection container found, rendering services");
 
   const services = [
     {
@@ -1043,6 +1151,11 @@ function applyAirlineBaggageAndServices(flight) {
       free: false
     },
   ];
+  console.log("[FlightSight] Services data initialized:", {
+    wifi: { show: data.hasWifi, cost: data.wifi_cost },
+    meal: { show: data.premium_meal_cost > 0, cost: data.premium_meal_cost },
+    insurance: { show: data.travel_insurance_cost > 0, cost: data.travel_insurance_cost }
+  });
 
   // Auto-select free services
   const serviceSelected = {
@@ -1077,6 +1190,8 @@ function applyAirlineBaggageAndServices(flight) {
         </div>
       `;
     }).join("");
+    const renderedCount = servicesContent.querySelectorAll(".service-option").length;
+    console.log("[FlightSight] Services rendered:", renderedCount, "services found in container");
 
     // Wire click — only once, only for paid services
     servicesContent.querySelectorAll("[data-service]").forEach(el => {
