@@ -228,13 +228,13 @@ let currentCheckedCount = 0;
 function applyBookingDataToUI(route, flight, dates) {
   const { origin, destination } = route;
 
-  // Update header flight info
+  
   const flightInfo = document.querySelector(".flight-info");
   if (flightInfo && flight) {
     flightInfo.textContent = `${flight.airline} • ${flight.flightNumber}`;
   }
 
-  // Update flight summary
+  
   if (flight) {
     // Departure
     const departureValue = document.querySelector(".flight-detail .detail-value");
@@ -268,7 +268,7 @@ function applyBookingDataToUI(route, flight, dates) {
     }
   }
 
-  // If you have a route label somewhere (recommended)
+  
   const routeLabel =
     document.getElementById("routeLabel") ||
     document.querySelector("[data-route-label]");
@@ -277,7 +277,7 @@ function applyBookingDataToUI(route, flight, dates) {
     routeLabel.textContent = `${origin.code} → ${destination.code}`;
   }
 
-  // Common possibilities: inputs or text nodes
+  
   const originTargets = [
     document.getElementById("origin"),
     document.getElementById("originInput"),
@@ -312,7 +312,7 @@ function applyBookingDataToUI(route, flight, dates) {
     }
   });
 
-  // If you have hidden inputs for submitting codes to backend
+
   const originCodeEl =
     document.getElementById("originCode") ||
     document.querySelector('input[name="originCode"]');
@@ -324,16 +324,18 @@ function applyBookingDataToUI(route, flight, dates) {
   if (originCodeEl) originCodeEl.value = origin.code;
   if (destinationCodeEl) destinationCodeEl.value = destination.code;
 
-  // You can also attach to window for debugging/other scripts
+  
   window.flightSightRoute = route;
   window.flightSightFlight = flight;
   window.flightSightDates = dates;
 }
 
 function applySelectedFlightToBookingUI(flight) {
+  console.log("[FlightSight] LOADING SELECTED FLIGHT in booking.js:", flight);
+  
   const flightInfoLabel = document.querySelector(".flight-info");
   if (flightInfoLabel) {
-    flightInfoLabel.textContent = `${flight.airline} - ${flight.legId}`;
+    flightInfoLabel.textContent = `${flight.airline} - ${flight.legId || flight.flight}`;
   }
 
   const detailValues = document.querySelectorAll(".flight-summary-grid .detail-value");
@@ -410,13 +412,25 @@ function applySelectedFlightToBookingUI(flight) {
   applyAirlineBaggageAndServices(flight);
 }
 
-/* ================= ROUTE ENFORCEMENT (NEW) ================= */
+
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("[FlightSight] Booking page DOMContentLoaded");
   const selectedFlight = getSelectedFlight();
+  console.log("[FlightSight] getSelectedFlight() returned:", selectedFlight);
 
   if (selectedFlight) {
     applySelectedFlightToBookingUI(selectedFlight);
     window.flightSightSelectedFlight = selectedFlight;
+    console.log("[FlightSight] Applied selectedFlight to UI");
+    return;
+  }
+  
+  
+  const rawFlight = getStoredFlight();
+  if (rawFlight) {
+    console.log("[FlightSight] Using raw stored flight:", rawFlight);
+    applySelectedFlightToBookingUI(rawFlight);
+    window.flightSightSelectedFlight = rawFlight;
     return;
   }
 
@@ -441,9 +455,8 @@ document.addEventListener("DOMContentLoaded", () => {
   applyBookingDataToUI(route, flight, dates);
 });
 
-/* ================= EXISTING BOOKING PAGE LOGIC (UNCHANGED) ================= */
+
 async function refreshEmissions() {
-  // expects: { co2: 180, airline: "Delta" }  (your server returns similar)
   const selectedFlight = getSelectedFlight();
   const route = getStoredRoute();
 
@@ -509,7 +522,7 @@ async function refreshSeatWeather() {
   if (seatPill) seatPill.textContent = `Seats: ${d.seat_status}`;
   if (weatherPill) weatherPill.textContent = `Weather: ${d.weather}`;
 
-  // Optional: tweak bar based on text (simple demo logic)
+  
   let pct = 60;
   if (String(d.seat_status).toLowerCase().includes("low")) pct = 25;
   if (String(d.seat_status).toLowerCase().includes("limited")) pct = 35;
@@ -524,8 +537,7 @@ async function refreshSeatWeather() {
 }
 
 async function runAnalysis() {
-  // expects something like:
-  // { avg_price: 320, cheapest_city: "Dallas", busiest_month: "July" }
+  
   const d = await getJSON(`${API_BASE}/analysis`);
 
   const analysisJson = document.getElementById("analysisJson");
@@ -540,6 +552,105 @@ async function runAnalysis() {
   if (kpiBusiestMonth) kpiBusiestMonth.textContent = d.busiest_month ?? "—";
 }
 
+function getSelectedSeatSummary() {
+  const selectedSeat = document.querySelector(".seat-option.selected");
+  if (!selectedSeat) return null;
+
+  const title = selectedSeat.querySelector(".seat-option-title")?.textContent?.trim();
+  return title ? `Seat: ${title}` : null;
+}
+
+function getBaggageSummary() {
+  const items = [];
+
+  document.querySelectorAll(".baggage-option").forEach((option) => {
+    const label = option.querySelector(".baggage-label")?.textContent?.trim();
+    const countText = option.querySelector(".counter-value")?.textContent?.trim();
+    const count = Number(countText);
+
+    if (!label || !Number.isFinite(count)) return;
+    if (label === "Checked Bags" && count <= 0) return;
+
+    items.push(`${label}: ${count}`);
+  });
+
+  return items.length ? items.join(", ") : null;
+}
+
+function getServiceSummary() {
+  const services = Array.from(document.querySelectorAll(".service-option.selected .service-title"))
+    .map((title) => title.textContent?.trim())
+    .filter(Boolean);
+
+  return services.length ? `Services: ${services.join(", ")}` : null;
+}
+
+function buildAddOnsSummary() {
+  const parts = [
+    getSelectedSeatSummary(),
+    getBaggageSummary(),
+    getServiceSummary(),
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(" | ") : null;
+}
+
+function updateBaggageOptionPrice(option, count) {
+  const label = option.querySelector(".baggage-label")?.textContent?.trim();
+  const priceLabel = option.querySelector(".baggage-price");
+  if (!priceLabel) return;
+
+  if (label === "Checked Bags") {
+    priceLabel.textContent = count > 0 ? `$${count * 50}` : "None";
+    return;
+  }
+
+  priceLabel.textContent = "Free";
+}
+
+function initializeBookingAddOnsUI() {
+  document.querySelectorAll(".seat-option").forEach((option) => {
+    option.addEventListener("click", () => {
+      document.querySelectorAll(".seat-option").forEach((item) => item.classList.remove("selected"));
+      option.classList.add("selected");
+    });
+  });
+
+  document.querySelectorAll(".service-option").forEach((option) => {
+    option.addEventListener("click", () => {
+      option.classList.toggle("selected");
+    });
+  });
+
+  document.querySelectorAll(".baggage-option").forEach((option) => {
+    const buttons = option.querySelectorAll(".counter-button");
+    const value = option.querySelector(".counter-value");
+    if (buttons.length !== 2 || !value) return;
+
+    const minusBtn = buttons[0];
+    const plusBtn = buttons[1];
+    const minCount = Number(value.textContent?.trim()) || 0;
+
+    updateBaggageOptionPrice(option, minCount);
+
+    minusBtn.addEventListener("click", () => {
+      const current = Number(value.textContent?.trim()) || 0;
+      const next = Math.max(minCount, current - 1);
+      value.textContent = String(next);
+      minusBtn.disabled = next <= minCount;
+      updateBaggageOptionPrice(option, next);
+    });
+
+    plusBtn.addEventListener("click", () => {
+      const current = Number(value.textContent?.trim()) || 0;
+      const next = current + 1;
+      value.textContent = String(next);
+      minusBtn.disabled = next <= minCount;
+      updateBaggageOptionPrice(option, next);
+    });
+  });
+}
+
 async function saveSelectedFlight() {
   const selectedFlight = getSelectedFlight();
   if (!selectedFlight) {
@@ -549,6 +660,7 @@ async function saveSelectedFlight() {
 
   const co2Text = document.getElementById("co2Big")?.textContent?.trim() || null;
   const weatherText = document.getElementById("weatherPill")?.textContent?.trim() || null;
+  const addOnsSummary = buildAddOnsSummary();
 
   // ── Read current baggage counts from the DOM ──
   const carryOnCount = currentCarryOnCount;
@@ -609,6 +721,7 @@ async function saveSelectedFlight() {
 
   const saveUrl = "http://localhost:3000/api/saved-flights";
   console.log("[FlightSight] Save request URL:", saveUrl);
+  console.log("[FlightSight] Save add_ons_summary:", addOnsSummary);
   console.log("[FlightSight] Save request payload:", payload);
 
   try {
@@ -762,7 +875,7 @@ function ensurePriceAlertButton() {
   refreshPriceAlertBaseline();
 }
 
-// Button wiring (guarded so it won't crash if an element is missing)
+
 const btnEmissions = document.getElementById("btnEmissions");
 const btnSeatWeather = document.getElementById("btnSeatWeather");
 const btnAnalysis = document.getElementById("btnAnalysis");
@@ -773,9 +886,10 @@ if (btnSeatWeather) btnSeatWeather.addEventListener("click", refreshSeatWeather)
 if (btnAnalysis) btnAnalysis.addEventListener("click", runAnalysis);
 if (btnSaveFlight) btnSaveFlight.addEventListener("click", saveSelectedFlight);
 
+initializeBookingAddOnsUI();
 ensurePriceAlertButton();
 
-// Auto-load a nice first view (optional)
+
 Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), refreshWeatherForecast()]);
 
 

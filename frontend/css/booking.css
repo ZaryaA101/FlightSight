@@ -575,6 +575,11 @@ h1 {
     border-color: #3b82f6;
 }
 
+.service-option.selected {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
 .service-content {
     display: flex;
     justify-content: space-between;
