@@ -491,3 +491,38 @@ input.selected-destination {
   overflow-y: auto;
 }
 }
+
+/* =================== Flight Route Page Fixes =================== */
+.flight-route-page .page-header,
+.flight-route-page .flight-container {
+  max-width: 1360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.flight-route-page .flight-container {
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.flight-route-page .map-section {
+  flex: 1 1 0;
+  min-width: 680px;
+}
+
+.flight-route-page .right-section {
+  flex: 0 0 420px;
+  min-width: 380px;
+}
+
+.flight-route-page #map {
+  height: 560px;
+}
+
+@media (max-width: 1100px) {
+  .flight-route-page .map-section,
+  .flight-route-page .right-section {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
