@@ -1,4 +1,10 @@
 /* =================== About Page =================== */
+body {
+  height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
 
 .about-hero {
   background: linear-gradient(
@@ -26,10 +32,12 @@
 
 /* Content Section */
 .about-content {
+  flex: 1;
   padding: 60px 20px;
   display: flex;
   flex-direction: column;
   gap: 30px;
+  justify-content: flex-end;
 }
 
 /* Cards */

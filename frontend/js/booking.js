@@ -207,6 +207,20 @@ async function refreshWeatherForecast() {
   }
 }
 
+// Helper function to format ISO date strings into a more user-friendly format (e.g., "3:45 PM")
+function formatDateTime(isoString) {
+  if (!isoString) return { date: "N/A", time: "N/A" };
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return { date: isoString, time: "" };
+  return {
+    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+  };
+}
+
+let baseFare = 0;
+let currentCarryOnCount = 0;
+let currentCheckedCount = 0;
 /**
  * Try to inject route, flight, and dates into the Booking page UI.
  * This is defensive: it only updates elements if they exist.
@@ -325,9 +339,11 @@ function applySelectedFlightToBookingUI(flight) {
   const detailValues = document.querySelectorAll(".flight-summary-grid .detail-value");
   const detailSubs = document.querySelectorAll(".flight-summary-grid .detail-sub");
 
-  if (detailValues[0]) detailValues[0].textContent = flight.departureTime || "N/A";
+  const dep = formatDateTime(flight.departureTime);
+  const arr = formatDateTime(flight.arrivalTime);
+  if (detailValues[0]) detailValues[0].innerHTML = `${dep.date}<br><span style="font-weight:400; color:#6b7280;">${dep.time}</span>`;
   if (detailValues[1]) detailValues[1].textContent = flight.travelDuration || "N/A";
-  if (detailValues[2]) detailValues[2].textContent = flight.arrivalTime || "N/A";
+  if (detailValues[2]) detailValues[2].innerHTML = `${arr.date}<br><span style="font-weight:400; color:#6b7280;">${arr.time}</span>`;
 
   if (detailSubs[0]) detailSubs[0].textContent = `${flight.origin}`;
   if (detailSubs[1]) detailSubs[1].textContent = Number(flight.stops) === 0 ? "Nonstop" : `${flight.stops} stop(s)`;
@@ -359,6 +375,7 @@ function applySelectedFlightToBookingUI(flight) {
 
   // Price breakdown
   const fare = Number(flight.totalFare) || 0;
+  baseFare = fare;
   const tax = Math.round(fare * 0.12);
   const total = fare + tax;
 
@@ -369,6 +386,10 @@ function applySelectedFlightToBookingUI(flight) {
   if (baseFareEl) baseFareEl.textContent = `$${fare.toFixed(2)}`;
   if (taxEl) taxEl.textContent = `$${tax.toFixed(2)}`;
   if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+
+  // Seat availability
+  const seatTextEl = document.getElementById("seatAvailText");
+  if (seatTextEl) seatTextEl.textContent = flight.seatAvailability || "Unknown";
 
   // Safety rating (derived from risk score same way as flightResults.js)
   const risk = Number(flight.delayCancellationRiskScore);
@@ -384,6 +405,9 @@ function applySelectedFlightToBookingUI(flight) {
       safety >= 75 ? "Good safety record" :
       "Moderate safety record";
   }
+
+  // Apply baggage and services if you have them
+  applyAirlineBaggageAndServices(flight);
 }
 
 /* ================= ROUTE ENFORCEMENT (NEW) ================= */
@@ -526,13 +550,62 @@ async function saveSelectedFlight() {
   const co2Text = document.getElementById("co2Big")?.textContent?.trim() || null;
   const weatherText = document.getElementById("weatherPill")?.textContent?.trim() || null;
 
+  // ── Read current baggage counts from the DOM ──
+  const carryOnCount = currentCarryOnCount;
+  const checkedCount = currentCheckedCount;
+  // ── Read selected services from the DOM ──
+  const wifiSelected   = document.querySelector("[data-service='wifi']")?.classList.contains("service-selected") ?? false;
+  const mealSelected   = document.querySelector("[data-service='meal']")?.classList.contains("service-selected") ?? false;
+  const insuranceSelected = document.querySelector("[data-service='insurance']")?.classList.contains("service-selected") ?? false;
+
+  // ── Calculate add-on costs ──
+  const airlineData = getAirlineData(selectedFlight.airline);
+  let carryOnCost = 0;
+  let checkedCost = 0;
+
+  if (airlineData) {
+    if (airlineData.add_carryOn > 0) carryOnCost = carryOnCount * airlineData.add_carryOn;
+    if (checkedCount >= 1) checkedCost += airlineData.add_checkedIn_1st;
+    if (checkedCount >= 2) checkedCost += (checkedCount - 1) * airlineData.add_checkedIn_2nd;
+  }
+
+  const wifiCost      = wifiSelected && airlineData?.wifi_cost > 0 ? airlineData.wifi_cost : 0;
+  const mealCost      = mealSelected ? (airlineData?.premium_meal_cost ?? 0) : 0;
+  const insuranceCost = insuranceSelected ? (airlineData?.travel_insurance_cost ?? 0) : 0;
+
+  const tax   = Math.round(baseFare * 0.12);
+  const total = baseFare + tax + carryOnCost + checkedCost + wifiCost + mealCost + insuranceCost;
+
   const payload = {
     selectedFlight: {
       ...selectedFlight,
       emissions: co2Text,
       weather: weatherText,
-    },
+      // ── Add-ons ──
+      addOnsSummary: JSON.stringify({
+        carryOnBags: carryOnCount,
+        carryOnCost,
+        checkedBags: checkedCount,
+        checkedCost,
+        wifi: wifiSelected,
+        wifiCost,
+        meal: mealSelected,
+        mealCost,
+        insurance: insuranceSelected,
+        insuranceCost,
+        totalWithAddOns: total,
+      })},
   };
+
+  console.log("[FlightSight] addOnsSummary being saved:", JSON.stringify({
+    carryOnCount,
+    checkedCount,
+    wifiSelected,
+    mealSelected,
+    insuranceSelected,
+  }));
+
+  console.log("[FlightSight] Full addOnsSummary string:", payload.selectedFlight.addOnsSummary);
 
   const saveUrl = "http://localhost:3000/api/saved-flights";
   console.log("[FlightSight] Save request URL:", saveUrl);
@@ -672,64 +745,19 @@ async function refreshPriceAlertBaseline() {
 }
 
 function ensurePriceAlertButton() {
-  const actionButtons = document.querySelector(".action-buttons");
-  if (!actionButtons) return;
-  if (document.getElementById("btnPriceAlert")) return;
+  const btn = document.getElementById("btnPriceAlert");
+  if (!btn) return;
 
-  // Visible status message (always rendered, with graceful fallback)
-  if (!document.getElementById("priceAlertStatus")) {
-    const status = document.createElement("div");
-    status.id = "priceAlertStatus";
-    status.className = "price-alert-status price-alert-status--info";
-    status.textContent = "Set your own threshold to track this trip.";
-    actionButtons.insertBefore(status, actionButtons.firstChild);
-  }
-
-  if (!document.getElementById("priceAlertControls")) {
-    const controls = document.createElement("div");
-    controls.id = "priceAlertControls";
-    controls.style.display = "inline-flex";
-    controls.style.alignItems = "center";
-    controls.style.gap = "8px";
-
-    const input = document.createElement("input");
-    input.id = "priceAlertThreshold";
-    input.type = "number";
-    input.min = "1";
-    input.step = "1";
-    input.placeholder = "Target price";
-    input.setAttribute("aria-label", "Price alert threshold");
-    input.style.height = "36px";
-    input.style.padding = "0 10px";
-    input.style.border = "1px solid #d1d5db";
-    input.style.borderRadius = "8px";
-    input.style.width = "150px";
-
-    const btn = document.createElement("button");
-    btn.id = "btnPriceAlert";
-    btn.className = "btn-secondary";
-    btn.type = "button";
-    btn.textContent = "Set Price Alert";
-    btn.addEventListener("click", async () => {
-      const threshold = Number(input.value);
-      if (!Number.isFinite(threshold) || threshold <= 0) {
-        setPriceAlertStatus("Please enter a valid threshold above $0.", "warn");
-        return;
-      }
-      await createPriceAlert(threshold);
-      refreshPriceAlertBaseline();
-    });
-
-    controls.appendChild(input);
-    controls.appendChild(btn);
-
-    const btnSaveFlight = document.querySelector(".btn-primary");
-    if (btnSaveFlight && btnSaveFlight.parentNode === actionButtons) {
-      actionButtons.insertBefore(controls, btnSaveFlight.nextSibling);
-    } else {
-      actionButtons.appendChild(controls);
+  btn.addEventListener("click", async () => {
+    const input = document.getElementById("priceAlertThreshold");
+    const threshold = Number(input?.value);
+    if (!Number.isFinite(threshold) || threshold <= 0) {
+      setPriceAlertStatus("Please enter a valid threshold above $0.", "warn");
+      return;
     }
-  }
+    await createPriceAlert(threshold);
+    refreshPriceAlertBaseline();
+  });
 
   refreshPriceAlertBaseline();
 }
@@ -749,3 +777,296 @@ ensurePriceAlertButton();
 
 // Auto-load a nice first view (optional)
 Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), refreshWeatherForecast()]);
+
+
+
+
+// BAGGAGE AND ADDITIONAL SERVICES
+const AIRLINE_DATA = {
+  "Delta": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 25 },
+  "Alaska Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 10, hasWifi: true, wifi_cost: 8, premium_meal_cost: 12, travel_insurance_cost: 20 },
+  "American Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 50, add_checkedIn_2nd: 60, max_checkedIn: 10, hasWifi: true, wifi_cost: 10, premium_meal_cost: 15, travel_insurance_cost: 22 },
+  "United Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 22 },
+  "Southern Airways Express": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 2, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "JetBlue Airways": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 39, add_checkedIn_2nd: 50, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 12, travel_insurance_cost: 20 },
+  "Frontier Airlines": { add_carryOn: 75, max_carryOn: 1, add_checkedIn_1st: 55, add_checkedIn_2nd: 75, max_checkedIn: 10, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Cape Air": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 50, add_checkedIn_2nd: 75, max_checkedIn: 2, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Key Lime Air": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 50, add_checkedIn_2nd: 75, max_checkedIn: 1, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Contour Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 2, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Boutique Air": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 50, add_checkedIn_2nd: 75, max_checkedIn: 1, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Sun Country Airlines": { add_carryOn: 35, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 10, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 15 },
+  "Silver Airways": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 30, add_checkedIn_2nd: 40, max_checkedIn: 10, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
+  "Hawaiian Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 22 },
+};
+
+function getAirlineData(airlineName) {
+  if (!airlineName) return null;
+  // Try exact match first, then partial
+  if (AIRLINE_DATA[airlineName]) return AIRLINE_DATA[airlineName];
+  const key = Object.keys(AIRLINE_DATA).find(k =>
+    airlineName.toLowerCase().includes(k.toLowerCase()) ||
+    k.toLowerCase().includes(airlineName.toLowerCase())
+  );
+  return key ? AIRLINE_DATA[key] : null;
+}
+
+function applyAirlineBaggageAndServices(flight) {
+  const data = getAirlineData(flight.airline);
+  if (!data) return;
+
+  // ---- BAGGAGE ----
+  const baggageContent = document.getElementById("baggageSection");
+  if (baggageContent) {
+    let carryOnCount = data.add_carryOn === 0 ? 1 : 0;
+    let checkedCount = 0;
+    currentCarryOnCount = carryOnCount; // initialize outer scope too
+    currentCheckedCount = checkedCount;
+
+    function carryOnCost(count) {
+      if (data.add_carryOn === 0) return "Free";
+      return count === 0 ? "$0" : `$${data.add_carryOn}`;
+    }
+
+    function checkedCost(count) {
+      if (count === 0) return "None";
+      if (count === 1) return `$${data.add_checkedIn_1st}`;
+      return `$${data.add_checkedIn_1st + (count - 1) * data.add_checkedIn_2nd}`;
+    }
+
+    function renderBaggage() {
+      baggageContent.innerHTML = `
+        <div class="baggage-option">
+          <div class="baggage-header">
+            <label class="baggage-label">Carry-on Bags</label>
+            <span class="baggage-note">${data.add_carryOn === 0 ? "1 included free" : `$${data.add_carryOn} per bag`}</span>
+          </div>
+          <div class="baggage-controls">
+            <button class="counter-button" id="carryOnMinus" ${carryOnCount <= (data.add_carryOn === 0 ? 1 : 0) ? "disabled" : ""}>-</button>
+            <span class="counter-value" id="carryOnCount">${carryOnCount}</span>
+            <button class="counter-button" id="carryOnPlus" ${carryOnCount >= data.max_carryOn ? "disabled" : ""}>+</button>
+            <span class="baggage-price" id="carryOnPrice">${carryOnCost(carryOnCount)}</span>
+          </div>
+        </div>
+        <div class="baggage-option">
+          <div class="baggage-header">
+            <label class="baggage-label">Checked Bags</label>
+            <span class="baggage-note">1st: $${data.add_checkedIn_1st} · 2nd+: $${data.add_checkedIn_2nd}</span>
+          </div>
+          <div class="baggage-controls">
+            <button class="counter-button" id="checkedMinus" ${checkedCount <= 0 ? "disabled" : ""}>-</button>
+            <span class="counter-value" id="checkedCount">${checkedCount}</span>
+            <button class="counter-button" id="checkedPlus" ${checkedCount >= data.max_checkedIn ? "disabled" : ""}>+</button>
+            <span class="baggage-price" id="checkedPrice">${checkedCost(checkedCount)}</span>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("carryOnMinus").addEventListener("click", () => {
+        const min = data.add_carryOn === 0 ? 1 : 0;
+        if (carryOnCount > min) {
+          carryOnCount--;
+          currentCarryOnCount = carryOnCount; // sync to outer scope
+          renderBaggage();
+          recalculateTotal();
+        }
+      });
+      document.getElementById("carryOnPlus").addEventListener("click", () => {
+        if (carryOnCount < data.max_carryOn) {
+          carryOnCount++;
+          currentCarryOnCount = carryOnCount; // sync to outer scope
+          renderBaggage();
+          recalculateTotal();
+        }
+      });
+      document.getElementById("checkedMinus").addEventListener("click", () => {
+        if (checkedCount > 0) {
+          checkedCount--;
+          currentCheckedCount = checkedCount; // sync to outer scope
+          renderBaggage();
+          recalculateTotal();
+        }
+      });
+      document.getElementById("checkedPlus").addEventListener("click", () => {
+        if (checkedCount < data.max_checkedIn) {
+          checkedCount++;
+          currentCheckedCount = checkedCount; // sync to outer scope
+          renderBaggage();
+          recalculateTotal();
+        }
+      });
+    }
+
+    renderBaggage();
+  }
+
+  // ---- ADDITIONAL SERVICES ----
+  const servicesContent = document.getElementById("servicesSection");
+  if (!servicesContent) return;
+
+  const services = [
+    {
+      key: "wifi",
+      show: data.hasWifi,
+      title: "In-Flight WiFi",
+      desc: "Full flight connectivity",
+      cost: data.wifi_cost,
+      free: data.wifi_cost === 0
+    },
+    {
+      key: "meal",
+      show: data.premium_meal_cost > 0,
+      title: "Premium Meal",
+      desc: "Chef-curated dining experience",
+      cost: data.premium_meal_cost,
+      free: false
+    },
+    {
+      key: "insurance",
+      show: data.travel_insurance_cost > 0,
+      title: "Travel Insurance",
+      desc: "Comprehensive coverage for your trip",
+      cost: data.travel_insurance_cost,
+      free: false
+    },
+  ];
+
+  // Auto-select free services
+  const serviceSelected = {
+    wifi: data.hasWifi && data.wifi_cost === 0,
+    meal: false,
+    insurance: false,
+  };
+
+  function renderServices() {
+    servicesContent.innerHTML = services.map(s => {
+      if (!s.show) return ""; // hide unavailable entirely
+
+      const isSelected = serviceSelected[s.key];
+      const priceLabel = s.free ? "Free (Included)" : `+$${s.cost}`;
+
+      return `
+        <div class="service-option ${isSelected ? "service-selected" : ""}"
+          data-service="${s.key}"
+          style="cursor: ${s.free ? 'default' : 'pointer'};"
+        >
+          <div class="service-content">
+            <div class="service-info">
+              <div>
+                <p class="service-title">${s.title}</p>
+                <p class="service-desc">${s.desc}</p>
+              </div>
+            </div>
+            <div class="service-price-box">
+              <p class="service-price">${priceLabel}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Wire click — only once, only for paid services
+    servicesContent.querySelectorAll("[data-service]").forEach(el => {
+      const key = el.dataset.service;
+      const service = services.find(s => s.key === key);
+      if (!service || service.free) return;
+
+      el.addEventListener("click", () => {
+        serviceSelected[key] = !serviceSelected[key];
+        el.classList.toggle("service-selected", serviceSelected[key]);
+        recalculateTotal();
+      });
+    });
+  }
+
+  renderServices();
+}
+
+
+function recalculateTotal() {
+  const tax = Math.round(baseFare * 0.12);
+
+  const carryOnCount = Number(document.getElementById("carryOnCount")?.textContent) || 0;
+  const checkedCount = Number(document.getElementById("checkedCount")?.textContent) || 0;
+
+  const airlineName = getSelectedFlight()?.airline || "";
+  const data = getAirlineData(airlineName);
+
+  let carryOnCost = 0;
+  let checkedCost = 0;
+
+  if (data) {
+    // Carry-on cost — only if airline charges
+    if (data.add_carryOn > 0) {
+      carryOnCost = carryOnCount * data.add_carryOn;
+    }
+    // Checked cost — 1st bag + 2nd+ bags
+    if (checkedCount >= 1) checkedCost += data.add_checkedIn_1st;
+    if (checkedCount >= 2) checkedCost += (checkedCount - 1) * data.add_checkedIn_2nd;
+  }
+
+  // Show/hide carry-on row
+  const carryOnRow = document.getElementById("carryOnRow");
+  if (carryOnRow) {
+    if (carryOnCost > 0) {
+      carryOnRow.classList.remove("hidden");
+      document.getElementById("carryOnRowLabel").textContent = `Carry-on (${carryOnCount}x)`;
+      document.getElementById("carryOnRowAmount").textContent = `$${carryOnCost.toFixed(2)}`;
+    } else {
+      carryOnRow.classList.add("hidden");
+    }
+  }
+
+  // Show/hide checked bags row
+  const checkedRow = document.getElementById("checkedRow");
+  if (checkedRow) {
+    if (checkedCount > 0) {
+      checkedRow.classList.remove("hidden");
+      document.getElementById("checkedRowLabel").textContent = `Checked Bags (${checkedCount}x)`;
+      document.getElementById("checkedRowAmount").textContent = `$${checkedCost.toFixed(2)}`;
+    } else {
+      checkedRow.classList.add("hidden");
+    }
+  }
+
+  // Services
+  let servicesCost = 0;
+
+  const wifiEl = document.querySelector("[data-service='wifi']");
+  const mealEl = document.querySelector("[data-service='meal']");
+  const insuranceEl = document.querySelector("[data-service='insurance']");
+
+  const wifiRow = document.getElementById("wifiRow");
+  const mealRow = document.getElementById("mealRow");
+  const insuranceRow = document.getElementById("insuranceRow");
+
+  if (data && wifiEl?.classList.contains("service-selected") && data.wifi_cost > 0) {
+    servicesCost += data.wifi_cost;
+    if (wifiRow) {
+      wifiRow.classList.remove("hidden");
+      document.getElementById("wifiRowAmount").textContent = `$${data.wifi_cost.toFixed(2)}`;
+    }
+  } else if (wifiRow) wifiRow.classList.add("hidden");
+
+  if (data && mealEl?.classList.contains("service-selected")) {
+    servicesCost += data.premium_meal_cost;
+    if (mealRow) {
+      mealRow.classList.remove("hidden");
+      document.getElementById("mealRowAmount").textContent = `$${data.premium_meal_cost.toFixed(2)}`;
+    }
+  } else if (mealRow) mealRow.classList.add("hidden");
+
+  if (data && insuranceEl?.classList.contains("service-selected")) {
+    servicesCost += data.travel_insurance_cost;
+    if (insuranceRow) {
+      insuranceRow.classList.remove("hidden");
+      document.getElementById("insuranceRowAmount").textContent = `$${data.travel_insurance_cost.toFixed(2)}`;
+    }
+  } else if (insuranceRow) insuranceRow.classList.add("hidden");
+
+  const total = baseFare + tax + carryOnCost + checkedCost + servicesCost;
+
+  const taxEl = document.getElementById("taxAmount");
+  const totalEl = document.getElementById("totalAmount");
+  if (taxEl) taxEl.textContent = `$${tax.toFixed(2)}`;
+  if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+}

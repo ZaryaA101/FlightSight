@@ -16,7 +16,7 @@
         <nav>
           <a href="homePage.html">Home</a>
           <a href="#">My Trips</a>
-          <a href="#">Saved Flights</a>
+          <a href="savedFlights.html">Saved Flights</a>
           <button class="signout" onclick="location.href = 'login.html'">
             Sign Out
           </button>
@@ -26,7 +26,7 @@
 
     <div class="container booking-shell">
         <div class="header-top">
-          <a href="homePage.html" class="back-link">←</a>
+          <a href="flightResults.html" class="back-link">←</a>
           <div class="page-title">
             <h1>Complete Your Booking</h1>
             <p>
@@ -71,12 +71,11 @@
                         <div class="flight-info-details">
                             <div class="info-row" id="aircraftRow">
                                 <p class="info-label">Airline</p>
-                                <p class="info-value" id="aircraftValue">—</p>
+                                <p class="detail-value" id="aircraftValue">—</p>
                             </div>
                             <div class="info-row">
                                 <p class="info-label">Travel Date</p>
-                                <p class="info-value">Mar 15, 2026</p>
-                                <p class="info-value" id="travelDateValue">—</p>
+                                <p class="detail-value" id="travelDateValue">—</p>
                             </div>
                         </div>
                     </div>
@@ -94,33 +93,18 @@
                     </div>
                     <div class="card-content">
                         <div class="availability-card">
-                            <div class="availability-header">
-                                <span class="availability-label">Current Availability</span>
-                                <span class="availability-percent">68%</span>
+                            <div class="availability-card">
+                                <div class="availability-header">
+                                    <span class="availability-label">Current Availability</span>
+                                    <span class="availability-percent" id="seatAvailText">—</span>
+                                </div>
                             </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="seatProgressFill" style="width: 68%;"></div>
+                            <div class="ml-prediction">
+                                <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                ML Prediction: Book soon!
                             </div>
-                        </div>
-                        <div class="seat-classes">
-                            <div class="seat-class economy">
-                                <p class="seat-class-label">Economy</p>
-                                <p class="seat-class-value">58%</p>
-                            </div>
-                            <div class="seat-class premium">
-                                <p class="seat-class-label">Premium</p>
-                                <p class="seat-class-value">44%</p>
-                            </div>
-                            <div class="seat-class business">
-                                <p class="seat-class-label">Business</p>
-                                <p class="seat-class-value">31%</p>
-                            </div>
-                        </div>
-                        <div class="ml-prediction">
-                            <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            ML Prediction: Good availability expected - Book soon!
                         </div>
                     </div>
                 </div>
@@ -248,7 +232,7 @@
                             Baggage Options
                         </h2>
                     </div>
-                    <div class="card-content">
+                    <div class="card-content" id="baggageSection">
                         <div class="baggage-option">
                             <div class="baggage-header">
                                 <label class="baggage-label">Carry-on Bags</label>
@@ -286,7 +270,7 @@
                             Additional Services
                         </h2>
                     </div>
-                    <div class="card-content">
+                    <div class="card-content" id="servicesSection">
                         <div class="service-option">
                             <div class="service-content">
                                 <div class="service-info">
@@ -353,9 +337,34 @@
                                 <span class="price-amount" id="baseFareAmount">$450</span>
                             </div>
                             <div class="price-row">
-                                <span class="price-label-sm">Taxes & Fees</span>
+                                <span class="price-label-sm">Taxes & Fees (12%)</span>
                                 <span class="price-amount-sm" id="taxAmount">$54</span>
                             </div>
+
+                            <!-- Baggage rows — hidden by default -->
+                            <div class="price-row hidden" id="carryOnRow">
+                                <span class="price-label-sm" id="carryOnRowLabel">Carry-on (1x)</span>
+                                <span class="price-amount-sm" id="carryOnRowAmount">$0</span>
+                            </div>
+                            <div class="price-row hidden" id="checkedRow">
+                                <span class="price-label-sm" id="checkedRowLabel">Checked Bags (1x)</span>
+                                <span class="price-amount-sm" id="checkedRowAmount">$0</span>
+                            </div>
+
+                            <!-- Service rows — hidden by default -->
+                            <div class="price-row hidden" id="wifiRow">
+                                <span class="price-label-sm">In-Flight WiFi</span>
+                                <span class="price-amount-sm" id="wifiRowAmount">$0</span>
+                            </div>
+                            <div class="price-row hidden" id="mealRow">
+                                <span class="price-label-sm">Premium Meal</span>
+                                <span class="price-amount-sm" id="mealRowAmount">$0</span>
+                            </div>
+                            <div class="price-row hidden" id="insuranceRow">
+                                <span class="price-label-sm">Travel Insurance</span>
+                                <span class="price-amount-sm" id="insuranceRowAmount">$0</span>
+                            </div>
+
                             <div class="price-row total">
                                 <span class="price-total-label">Total</span>
                                 <span class="price-total-amount" id="totalAmount">$504</span>
@@ -396,16 +405,49 @@
                         </div>
                     </div>
 
+                    <!-- Price Alert Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                </svg>
+                                Price Alert
+                            </h2>
+                        </div>
+                        <div class="card-content">
+                            <p class="price-alert-hint">Get notified when the price drops below your target.</p>
+                            <div class="price-alert-input-row">
+                                <div class="price-alert-input-wrap">
+                                    <span class="price-alert-dollar">$</span>
+                                    <input
+                                        id="priceAlertThreshold"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        placeholder="Target price"
+                                        aria-label="Price alert threshold"
+                                        class="price-alert-input"
+                                    />
+                                </div>
+                                <button id="btnPriceAlert" class="price-alert-btn" type="button">Set Alert</button>
+                            </div>
+                            <div id="priceAlertStatus" class="price-alert-status price-alert-status--info">
+                                Set your own threshold to track this trip.
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="action-buttons">
-                        <button class="btn-primary">
+                        <button class="btn-primary" type="button">
                             <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                             </svg>
-                            Save
+                            Save Flight
                         </button>
-                        <button class="btn-secondary">
-                            Continue to Website
+                        <button class="btn-secondary" type="button">
+                            Continue to Airline Website
                             <svg class="icon-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
