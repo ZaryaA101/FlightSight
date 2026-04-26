@@ -32,6 +32,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   let map;
   let routeLine = null;
 
+  function updateContinueButtonState() {
+    if (!continueBtn) return;
+    const hasBoth = Boolean(selectedOrigin && selectedDestination);
+    continueBtn.disabled = !hasBoth;
+    continueBtn.setAttribute("aria-disabled", String(!hasBoth));
+  }
+
   const airportCoords = {
     LGA: { lat: 40.7769, lng: -73.874 },
     MIA: { lat: 25.7959, lng: -80.287 },
@@ -75,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadCSV() {
     console.log("[FlightSight] Loading airports from /data/airports_list.csv");
     try {
-      const response = await fetch("/backend/data/airports_list.csv");
+      const response = await fetch("/data/airports_list.csv");
       if (!response.ok) {
         console.error("[FlightSight] Failed to fetch airports:", response.status, response.statusText);
         return;
@@ -239,6 +246,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     localStorage.setItem("origin", JSON.stringify(airport));
     updateMarkerColors();
     drawRoute();
+    updateContinueButtonState();
+    console.log("[FlightSight] Current selected route after click:", {
+      selectedDeparture: selectedOrigin?.code || null,
+      selectedDestination: selectedDestination?.code || null,
+    });
   }
 
   function setDestination(airport) {
@@ -251,6 +263,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     localStorage.setItem("destination", JSON.stringify(airport));
     updateMarkerColors();
     drawRoute();
+    updateContinueButtonState();
+    console.log("[FlightSight] Current selected route after click:", {
+      selectedDeparture: selectedOrigin?.code || null,
+      selectedDestination: selectedDestination?.code || null,
+    });
   }
 
   function hydrateSelectionFromStorage() {
@@ -280,6 +297,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateMarkerColors();
       drawRoute();
     }
+
+    updateContinueButtonState();
   }
 
   function initMap() {
@@ -296,6 +315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         title: code,
         icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
       });
+      console.log("[FlightSight] Marker created:", code, coords);
 
       marker.addListener("click", () => {
         console.log("[FlightSight] Marker clicked:", code);
@@ -307,6 +327,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (clickCount === 0) setOrigin(airport);
         else setDestination(airport);
       });
+      console.log("[FlightSight] Marker click listener attached:", code);
 
       markers[code] = marker;
     });
@@ -331,6 +352,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     updateMarkerColors();
+    updateContinueButtonState();
   }
 
   originInput.addEventListener("input", () => {
@@ -387,6 +409,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   setupAutocomplete("origin", "originSuggestions", setOrigin);
   setupAutocomplete("destination", "destinationSuggestions", setDestination);
+
+  updateContinueButtonState();
 
   await Promise.all([loadGoogleMaps(), loadCSV()]);
   console.log("[FlightSight] Google Maps and airports loaded, initializing...");

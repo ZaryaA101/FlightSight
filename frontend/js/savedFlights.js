@@ -171,13 +171,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           ${addOnsHtml}
         </div>
 
-        ${flight.add_ons_summary ? `
-          <div class="info-box" style="margin-top: 12px;">
-            <strong>Add-ons</strong><br />
-            ${flight.add_ons_summary}
-          </div>
-        ` : ""}
-
         <div class="actions">
           <div class="price">
             ${typeof addOns?.totalWithAddOns === "number"
@@ -203,6 +196,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const id = Number(btn.dataset.id);
         const flight = flights.find((f) => f.id === id);
         if (!flight) return;
+
+        console.log("[FlightSight] Saved flight selected from View button:", {
+          id: flight.id,
+          airline: flight.airline,
+          origin: flight.origin,
+          destination: flight.destination,
+          departureDate: flight.departureDate,
+          addOnsSummary: flight.addOnsSummary ? JSON.parse(flight.addOnsSummary) : null,
+        });
 
         localStorage.setItem("selectedFlight", JSON.stringify(flight));
         window.location.href = "booking.html";
