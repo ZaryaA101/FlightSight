@@ -1,3 +1,4 @@
+// flightResults.js - handles the flight results page, including fetching predicted flights, applying filters, and rendering the flight list with safety and environmental metrics.
 const $ = (id) => document.getElementById(id);
 
 function safe(v) {
@@ -291,18 +292,35 @@ function parseSeatPercent(seatAvailability) {
   return Math.max(5, Math.min(100, Math.round((seats / 60) * 100)));
 }
 
+function seatAvailScore(seatAvail) {
+  if (seatAvail === "High availability") return 100;
+  if (seatAvail === "Moderate availability") return 70;
+  if (seatAvail === "Low availability") return 40;
+  if (seatAvail === "Very limited") return 15;
+  return 60; // fallback
+}
+
 function computeUiScore(flight) {
   const stopPenalty = Math.min(30, Number(flight.stops || 0) * 12);
   const normalizedPrice = Math.min(35, Math.round(Number(flight.price || 0) / 25));
-  return Math.max(1, Math.min(100, Math.round((flight.safety * 0.4) + (flight.weather * 0.2) + (flight.seats * 0.2) + (100 - normalizedPrice) * 0.2 - stopPenalty * 0.1)));
+  const seatScore = seatAvailScore(flight.seats);
+  return Math.max(1, Math.min(100, Math.round(
+    (flight.safety * 0.4) +
+    (flight.weather * 0.2) +
+    (seatScore * 0.2) +
+    (100 - normalizedPrice) * 0.2 -
+    stopPenalty * 0.1
+  )));
 }
 
-function adaptPredictFlight(p, index) {
+function adaptPredictFlight(p, index, realWeatherScore = null) {
   const risk = Number(p.delayCancellationRiskScore);
   const safeRisk = Number.isFinite(risk) ? Math.max(0, Math.min(100, risk)) : 50;
   const safety = Math.max(40, 100 - safeRisk);
-  const weather = Math.max(45, 98 - Math.round(safeRisk * 0.6));
-  const seats = parseSeatPercent(p.seatAvailability);
+  const weather = realWeatherScore !== null
+    ? realWeatherScore
+    : Math.max(45, 98 - Math.round(safeRisk * 0.6));
+  const seats = p.seatAvailability || "Unknown";
   const co2 = Math.max(160, 220 + Number(p.stops || 0) * 45 + Math.round(safeRisk * 0.6));
 
   const adapted = {
@@ -366,16 +384,10 @@ function getPredictRequestValues() {
 async function loadLiveFlights() {
   const { origin, destination, departureDate } = getPredictRequestValues();
 
-  if (!origin || !destination || !departureDate) {
-    return;
-  }
+  if (!origin || !destination || !departureDate) return;
 
   try {
-    const query = new URLSearchParams({
-      origin,
-      destination,
-      departureDate,
-    });
+    const query = new URLSearchParams({ origin, destination, departureDate });
     const url = `${API_BASE_RESULTS}/api/flights/predict?${query.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -385,11 +397,24 @@ async function loadLiveFlights() {
 
     const payload = await response.json();
     const predictedFlights = Array.isArray(payload?.flights) ? payload.flights : [];
-    if (!predictedFlights.length) {
-      return;
+    if (!predictedFlights.length) return;
+
+    // Fetch real weather score from Open-Meteo via your backend
+    let realWeatherScore = null;
+    try {
+      const weatherParams = new URLSearchParams({ origin, destination, date: departureDate });
+      const weatherRes = await fetch(`${API_BASE_RESULTS}/api/weather-forecast?${weatherParams.toString()}`);
+      if (weatherRes.ok) {
+        const weatherData = await weatherRes.json();
+        realWeatherScore = typeof weatherData.overallScore === "number"
+          ? weatherData.overallScore
+          : null;
+      }
+    } catch (err) {
+      console.warn("[FlightSight] Weather fetch failed, using heuristic.", err);
     }
 
-    const mapped = predictedFlights.map(adaptPredictFlight);
+    const mapped = predictedFlights.map((p, i) => adaptPredictFlight(p, i, realWeatherScore));
     flights.length = 0;
     mapped.forEach((f) => flights.push(f));
   } catch (err) {
@@ -496,6 +521,24 @@ function selectFlight(flightId) {
   window.location.href = "Booking.html";
 }
 
+function formatSeatAvailability(seatAvail) {
+  const map = {
+    "High availability": "High",
+    "Moderate availability": "Moderate", 
+    "Low availability": "Low",
+    "Very limited": "Very Limited"
+  };
+  return map[seatAvail] || seatAvail || "Unknown";
+}
+
+function badgeClassForSeats(seatAvail) {
+  if (seatAvail === "High availability") return "green";
+  if (seatAvail === "Moderate availability") return "blue";
+  if (seatAvail === "Low availability") return "amber";
+  if (seatAvail === "Very limited") return "red";
+  return "blue";
+}
+
 function flightCardHTML(f, includeOppCallout = false, cheapestPrice = null) {
   const stopText = f.stops === 0 ? "Nonstop" : f.stops === 1 ? "1 stop" : f.stops === 2 ? "2 stops" : "3 stops";
 
@@ -554,9 +597,9 @@ function flightCardHTML(f, includeOppCallout = false, cheapestPrice = null) {
             <div class="l">Weather</div>
             <div class="v">${safe(f.weather)}%</div>
           </div>
-          <div class="badge blue">
+          <div class="badge ${badgeClassForSeats(f.seats)}">
             <div class="l">Seats</div>
-            <div class="v">${safe(f.seats)}%</div>
+            <div class="v">${safe(formatSeatAvailability(f.seats))}</div>
           </div>
           <div class="badge purple">
             <div class="l">Score</div>
@@ -832,7 +875,7 @@ function renderComparisonTable(filtered) {
     ["Departure", ...cols.map((f) => f.depart)],
     ["Arrival", ...cols.map((f) => f.arrive)],
     ["Weather Score", ...cols.map((f) => `${f.weather}%`)],
-    ["Seat Availability", ...cols.map((f) => `${f.seats}%`)]
+    ["Seat Availability", ...cols.map((f) => formatSeatAvailability(f.seats))]
   ];
 
   const body = rows.map((r) => {
