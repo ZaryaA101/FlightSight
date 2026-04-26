@@ -109,12 +109,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const addOnsHtml = addOns ? `
         <div class="info-box seat" style="grid-column: 1 / -1; font-size: 0.85rem;">
           <strong>Selected Add-ons</strong><br/>
-          🧳 Carry-on: ${addOns.carryOnBags} bag(s) ${addOns.carryOnCost > 0 ? `($${addOns.carryOnCost})` : "(Free)"}
+          Carry-on: ${addOns.carryOnBags} bag(s) ${addOns.carryOnCost > 0 ? `($${addOns.carryOnCost})` : "(Free)"}
           &nbsp;|&nbsp;
-          🧳 Checked: ${addOns.checkedBags} bag(s) ${addOns.checkedCost > 0 ? `($${addOns.checkedCost})` : "(None)"}
-          ${addOns.wifi ? `&nbsp;|&nbsp; 📶 WiFi ${addOns.wifiCost > 0 ? `($${addOns.wifiCost})` : "(Free)"}` : ""}
-          ${addOns.meal ? `&nbsp;|&nbsp; 🍽️ Meal ($${addOns.mealCost})` : ""}
-          ${addOns.insurance ? `&nbsp;|&nbsp; 🛡️ Insurance ($${addOns.insuranceCost})` : ""}
+          Checked: ${addOns.checkedBags} bag(s) ${addOns.checkedCost > 0 ? `($${addOns.checkedCost})` : "(None)"}
+          ${addOns.wifi ? `&nbsp;|&nbsp; WiFi ${addOns.wifiCost > 0 ? `($${addOns.wifiCost})` : "(Free)"}` : ""}
+          ${addOns.meal ? `&nbsp;|&nbsp; Meal ($${addOns.mealCost})` : ""}
+          ${addOns.insurance ? `&nbsp;|&nbsp; Insurance ($${addOns.insuranceCost})` : ""}
         </div>
       ` : "";
 
