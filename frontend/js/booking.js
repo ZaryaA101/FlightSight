@@ -137,10 +137,10 @@ function getWeatherRequestParams() {
     "";
 
   const date =
+    normalizeDateForWeather(flight.departureDate) ||   // ← move this first
     normalizeDateForWeather(flight.date) ||
     normalizeDateForWeather(flight.flightDate) ||
-    normalizeDateForWeather(flight.departureDate) ||
-    normalizeDateForWeather(flight.departureTime) ||
+    normalizeDateForWeather(flight.departureTime) ||   // ← this was first before
     normalizeDateForWeather(dates.departure);
 
   return { origin, destination, date };
@@ -413,7 +413,7 @@ function applySelectedFlightToBookingUI(flight) {
 }
 
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   console.log("[FlightSight] Booking page DOMContentLoaded");
   const selectedFlight = getSelectedFlight();
   console.log("[FlightSight] getSelectedFlight() returned:", selectedFlight);
@@ -421,6 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (selectedFlight) {
     applySelectedFlightToBookingUI(selectedFlight);
     window.flightSightSelectedFlight = selectedFlight;
+    await refreshWeatherForecast();
     console.log("[FlightSight] Applied selectedFlight to UI");
     return;
   }
@@ -431,6 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[FlightSight] Using raw stored flight:", rawFlight);
     applySelectedFlightToBookingUI(rawFlight);
     window.flightSightSelectedFlight = rawFlight;
+    await refreshWeatherForecast();
     return;
   }
 
@@ -890,9 +892,7 @@ initializeBookingAddOnsUI();
 ensurePriceAlertButton();
 
 
-Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), refreshWeatherForecast()]);
-
-
+Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis()]);
 
 
 // BAGGAGE AND ADDITIONAL SERVICES
