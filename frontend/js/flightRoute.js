@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function loadCSV() {
     console.log("[FlightSight] Loading airports from /data/airports_list.csv");
     try {
-      const response = await fetch("/data/airports_list.csv");
+      const response = await fetch("/backend/data/airports_list.csv");
       if (!response.ok) {
         console.error("[FlightSight] Failed to fetch airports:", response.status, response.statusText);
         return;
