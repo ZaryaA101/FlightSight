@@ -207,20 +207,17 @@ async function refreshWeatherForecast() {
   }
 }
 
-/**
- * Try to inject route, flight, and dates into the Booking page UI.
- * This is defensive: it only updates elements if they exist.
- */
+
 function applyBookingDataToUI(route, flight, dates) {
   const { origin, destination } = route;
 
-  // Update header flight info
+  
   const flightInfo = document.querySelector(".flight-info");
   if (flightInfo && flight) {
     flightInfo.textContent = `${flight.airline} • ${flight.flightNumber}`;
   }
 
-  // Update flight summary
+  
   if (flight) {
     // Departure
     const departureValue = document.querySelector(".flight-detail .detail-value");
@@ -252,7 +249,7 @@ function applyBookingDataToUI(route, flight, dates) {
     }
   }
 
-  // If you have a route label somewhere (recommended)
+  
   const routeLabel =
     document.getElementById("routeLabel") ||
     document.querySelector("[data-route-label]");
@@ -261,7 +258,7 @@ function applyBookingDataToUI(route, flight, dates) {
     routeLabel.textContent = `${origin.code} → ${destination.code}`;
   }
 
-  // Common possibilities: inputs or text nodes
+  
   const originTargets = [
     document.getElementById("origin"),
     document.getElementById("originInput"),
@@ -296,7 +293,7 @@ function applyBookingDataToUI(route, flight, dates) {
     }
   });
 
-  // If you have hidden inputs for submitting codes to backend
+
   const originCodeEl =
     document.getElementById("originCode") ||
     document.querySelector('input[name="originCode"]');
@@ -308,24 +305,26 @@ function applyBookingDataToUI(route, flight, dates) {
   if (originCodeEl) originCodeEl.value = origin.code;
   if (destinationCodeEl) destinationCodeEl.value = destination.code;
 
-  // You can also attach to window for debugging/other scripts
+  
   window.flightSightRoute = route;
   window.flightSightFlight = flight;
   window.flightSightDates = dates;
 }
 
 function applySelectedFlightToBookingUI(flight) {
+  console.log("[FlightSight] LOADING SELECTED FLIGHT in booking.js:", flight);
+  
   const flightInfoLabel = document.querySelector(".flight-info");
   if (flightInfoLabel) {
-    flightInfoLabel.textContent = `${flight.airline} - ${flight.legId}`;
+    flightInfoLabel.textContent = `${flight.airline} - ${flight.legId || flight.flight}`;
   }
 
   const detailValues = document.querySelectorAll(".flight-summary-grid .detail-value");
   const detailSubs = document.querySelectorAll(".flight-summary-grid .detail-sub");
 
-  if (detailValues[0]) detailValues[0].textContent = flight.departureTime || "N/A";
-  if (detailValues[1]) detailValues[1].textContent = flight.travelDuration || "N/A";
-  if (detailValues[2]) detailValues[2].textContent = flight.arrivalTime || "N/A";
+  if (detailValues[0]) detailValues[0].textContent = flight.departureTime || flight.depart || "N/A";
+  if (detailValues[1]) detailValues[1].textContent = flight.travelDuration || flight.duration || "N/A";
+  if (detailValues[2]) detailValues[2].textContent = flight.arrivalTime || flight.arrive || "N/A";
 
   if (detailSubs[0]) detailSubs[0].textContent = `${flight.origin}`;
   if (detailSubs[1]) detailSubs[1].textContent = Number(flight.stops) === 0 ? "Nonstop" : `${flight.stops} stop(s)`;
@@ -341,15 +340,85 @@ function applySelectedFlightToBookingUI(flight) {
   if (baseFareNode && typeof flight.totalFare === "number") {
     baseFareNode.textContent = `$${flight.totalFare.toFixed(2)}`;
   }
+  
+  
+  applyFlightMetricsToUI(flight);
 }
 
-/* ================= ROUTE ENFORCEMENT (NEW) ================= */
+
+function applyFlightMetricsToUI(flight) {
+  if (!flight) return;
+
+  // Safety Rating
+  if (typeof flight.safety === "number") {
+    const safetyElement = document.getElementById("safetyRatingValue");
+    if (safetyElement) {
+      safetyElement.textContent = `${flight.safety}%`;
+      console.log("[FlightSight] Set Safety Rating to:", flight.safety);
+    }
+  }
+
+  // Seat Availability
+  if (typeof flight.seats === "number") {
+    const seatAvailPercent = document.getElementById("seatAvailPercent");
+    if (seatAvailPercent) {
+      seatAvailPercent.textContent = `${flight.seats}%`;
+      console.log("[FlightSight] Set Seat Availability to:", flight.seats);
+    }
+    
+    const progressFill = document.getElementById("seatAvailBar");
+    if (progressFill) {
+      progressFill.style.width = `${flight.seats}%`;
+    }
+  }
+
+  // CO2 Emissions
+  if (typeof flight.co2 === "number") {
+    const co2Element = document.getElementById("co2Big");
+    if (co2Element) {
+      co2Element.textContent = `${flight.co2} kg`;
+      console.log("[FlightSight] Set CO2 Emissions to:", flight.co2);
+    }
+  }
+
+  // Weather Score
+  if (typeof flight.weather === "number") {
+    const weatherScoreElement = document.getElementById("weatherOverallScore");
+    if (weatherScoreElement) {
+      weatherScoreElement.textContent = `Overall Weather Score: ${flight.weather}%`;
+      console.log("[FlightSight] Set Weather Score to:", flight.weather);
+    }
+  }
+  
+  // Price 
+  if (typeof flight.price === "number") {
+    const priceElement = document.querySelector(".price-row.base .price-amount");
+    if (priceElement) {
+      priceElement.textContent = `$${flight.price.toFixed(2)}`;
+      console.log("[FlightSight] Set Price to:", flight.price);
+    }
+  }
+}
+
+
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("[FlightSight] Booking page DOMContentLoaded");
   const selectedFlight = getSelectedFlight();
+  console.log("[FlightSight] getSelectedFlight() returned:", selectedFlight);
 
   if (selectedFlight) {
     applySelectedFlightToBookingUI(selectedFlight);
     window.flightSightSelectedFlight = selectedFlight;
+    console.log("[FlightSight] Applied selectedFlight to UI");
+    return;
+  }
+  
+  
+  const rawFlight = getStoredFlight();
+  if (rawFlight) {
+    console.log("[FlightSight] Using raw stored flight:", rawFlight);
+    applySelectedFlightToBookingUI(rawFlight);
+    window.flightSightSelectedFlight = rawFlight;
     return;
   }
 
@@ -374,9 +443,8 @@ document.addEventListener("DOMContentLoaded", () => {
   applyBookingDataToUI(route, flight, dates);
 });
 
-/* ================= EXISTING BOOKING PAGE LOGIC (UNCHANGED) ================= */
+
 async function refreshEmissions() {
-  // expects: { co2: 180, airline: "Delta" }  (your server returns similar)
   const selectedFlight = getSelectedFlight();
   const route = getStoredRoute();
 
@@ -442,7 +510,7 @@ async function refreshSeatWeather() {
   if (seatPill) seatPill.textContent = `Seats: ${d.seat_status}`;
   if (weatherPill) weatherPill.textContent = `Weather: ${d.weather}`;
 
-  // Optional: tweak bar based on text (simple demo logic)
+  
   let pct = 60;
   if (String(d.seat_status).toLowerCase().includes("low")) pct = 25;
   if (String(d.seat_status).toLowerCase().includes("limited")) pct = 35;
@@ -457,8 +525,7 @@ async function refreshSeatWeather() {
 }
 
 async function runAnalysis() {
-  // expects something like:
-  // { avg_price: 320, cheapest_city: "Dallas", busiest_month: "July" }
+  
   const d = await getJSON(`${API_BASE}/analysis`);
 
   const analysisJson = document.getElementById("analysisJson");
@@ -473,6 +540,105 @@ async function runAnalysis() {
   if (kpiBusiestMonth) kpiBusiestMonth.textContent = d.busiest_month ?? "—";
 }
 
+function getSelectedSeatSummary() {
+  const selectedSeat = document.querySelector(".seat-option.selected");
+  if (!selectedSeat) return null;
+
+  const title = selectedSeat.querySelector(".seat-option-title")?.textContent?.trim();
+  return title ? `Seat: ${title}` : null;
+}
+
+function getBaggageSummary() {
+  const items = [];
+
+  document.querySelectorAll(".baggage-option").forEach((option) => {
+    const label = option.querySelector(".baggage-label")?.textContent?.trim();
+    const countText = option.querySelector(".counter-value")?.textContent?.trim();
+    const count = Number(countText);
+
+    if (!label || !Number.isFinite(count)) return;
+    if (label === "Checked Bags" && count <= 0) return;
+
+    items.push(`${label}: ${count}`);
+  });
+
+  return items.length ? items.join(", ") : null;
+}
+
+function getServiceSummary() {
+  const services = Array.from(document.querySelectorAll(".service-option.selected .service-title"))
+    .map((title) => title.textContent?.trim())
+    .filter(Boolean);
+
+  return services.length ? `Services: ${services.join(", ")}` : null;
+}
+
+function buildAddOnsSummary() {
+  const parts = [
+    getSelectedSeatSummary(),
+    getBaggageSummary(),
+    getServiceSummary(),
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(" | ") : null;
+}
+
+function updateBaggageOptionPrice(option, count) {
+  const label = option.querySelector(".baggage-label")?.textContent?.trim();
+  const priceLabel = option.querySelector(".baggage-price");
+  if (!priceLabel) return;
+
+  if (label === "Checked Bags") {
+    priceLabel.textContent = count > 0 ? `$${count * 50}` : "None";
+    return;
+  }
+
+  priceLabel.textContent = "Free";
+}
+
+function initializeBookingAddOnsUI() {
+  document.querySelectorAll(".seat-option").forEach((option) => {
+    option.addEventListener("click", () => {
+      document.querySelectorAll(".seat-option").forEach((item) => item.classList.remove("selected"));
+      option.classList.add("selected");
+    });
+  });
+
+  document.querySelectorAll(".service-option").forEach((option) => {
+    option.addEventListener("click", () => {
+      option.classList.toggle("selected");
+    });
+  });
+
+  document.querySelectorAll(".baggage-option").forEach((option) => {
+    const buttons = option.querySelectorAll(".counter-button");
+    const value = option.querySelector(".counter-value");
+    if (buttons.length !== 2 || !value) return;
+
+    const minusBtn = buttons[0];
+    const plusBtn = buttons[1];
+    const minCount = Number(value.textContent?.trim()) || 0;
+
+    updateBaggageOptionPrice(option, minCount);
+
+    minusBtn.addEventListener("click", () => {
+      const current = Number(value.textContent?.trim()) || 0;
+      const next = Math.max(minCount, current - 1);
+      value.textContent = String(next);
+      minusBtn.disabled = next <= minCount;
+      updateBaggageOptionPrice(option, next);
+    });
+
+    plusBtn.addEventListener("click", () => {
+      const current = Number(value.textContent?.trim()) || 0;
+      const next = current + 1;
+      value.textContent = String(next);
+      minusBtn.disabled = next <= minCount;
+      updateBaggageOptionPrice(option, next);
+    });
+  });
+}
+
 async function saveSelectedFlight() {
   const selectedFlight = getSelectedFlight();
   if (!selectedFlight) {
@@ -482,17 +648,20 @@ async function saveSelectedFlight() {
 
   const co2Text = document.getElementById("co2Big")?.textContent?.trim() || null;
   const weatherText = document.getElementById("weatherPill")?.textContent?.trim() || null;
+  const addOnsSummary = buildAddOnsSummary();
 
   const payload = {
     selectedFlight: {
       ...selectedFlight,
       emissions: co2Text,
       weather: weatherText,
+      add_ons_summary: addOnsSummary,
     },
   };
 
   const saveUrl = "http://localhost:3000/api/saved-flights";
   console.log("[FlightSight] Save request URL:", saveUrl);
+  console.log("[FlightSight] Save add_ons_summary:", addOnsSummary);
   console.log("[FlightSight] Save request payload:", payload);
 
   try {
@@ -691,7 +860,7 @@ function ensurePriceAlertButton() {
   refreshPriceAlertBaseline();
 }
 
-// Button wiring (guarded so it won't crash if an element is missing)
+
 const btnEmissions = document.getElementById("btnEmissions");
 const btnSeatWeather = document.getElementById("btnSeatWeather");
 const btnAnalysis = document.getElementById("btnAnalysis");
@@ -702,7 +871,8 @@ if (btnSeatWeather) btnSeatWeather.addEventListener("click", refreshSeatWeather)
 if (btnAnalysis) btnAnalysis.addEventListener("click", runAnalysis);
 if (btnSaveFlight) btnSaveFlight.addEventListener("click", saveSelectedFlight);
 
+initializeBookingAddOnsUI();
 ensurePriceAlertButton();
 
-// Auto-load a nice first view (optional)
+
 Promise.allSettled([refreshEmissions(), refreshSeatWeather(), runAnalysis(), refreshWeatherForecast()]);

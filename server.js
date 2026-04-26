@@ -173,6 +173,14 @@ app.post("/auth/login", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
+async function ensureSavedFlightsSchema() {
+  await sql`
+    ALTER TABLE saved_flights
+    ADD COLUMN IF NOT EXISTS add_ons_summary TEXT;
+  `;
+  console.log("[FlightSight] ensured saved_flights.add_ons_summary exists");
+}
+
 function normalizeSavedFlight(input) {
   if (!input || typeof input !== "object") return null;
 
@@ -205,6 +213,7 @@ function normalizeSavedFlight(input) {
     confidence: input.confidence || null,
     emissions: input.emissions || null,
     weather: input.weather || null,
+    addOnsSummary: String(input.add_ons_summary || input.addOnsSummary || "").trim() || null,
     isPredicted: Boolean(input.isPredicted),
   };
 }
@@ -256,12 +265,14 @@ function mapSavedFlightRow(row) {
     confidence: row.confidence,
     emissions: row.emissions,
     weather: row.weather,
+    add_ons_summary: row.add_ons_summary,
     isPredicted: Boolean(row.is_predicted),
   };
 }
 
 async function insertSavedFlight(flight) {
   const flightHash = buildSavedFlightHash(flight);
+  console.log("[FlightSight] insertSavedFlight add_ons_summary:", flight.addOnsSummary || "(null)");
   const inserted = await sql`
     INSERT INTO saved_flights (
       flight_hash,
@@ -281,6 +292,7 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
+      add_ons_summary,
       is_predicted
     )
     VALUES (
@@ -301,9 +313,12 @@ async function insertSavedFlight(flight) {
       ${flight.confidence},
       ${flight.emissions},
       ${flight.weather},
+      ${flight.addOnsSummary},
       ${flight.isPredicted}
     )
-    ON CONFLICT (flight_hash) DO NOTHING
+    ON CONFLICT (flight_hash) DO UPDATE
+    SET add_ons_summary = EXCLUDED.add_ons_summary
+    WHERE EXCLUDED.add_ons_summary IS NOT NULL
     RETURNING
       id,
       created_at,
@@ -323,6 +338,7 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
+        add_ons_summary,
       is_predicted;
   `;
 
@@ -350,6 +366,7 @@ async function insertSavedFlight(flight) {
       confidence,
       emissions,
       weather,
+      add_ons_summary,
       is_predicted
     FROM saved_flights
     WHERE flight_hash = ${flightHash}
@@ -383,6 +400,7 @@ async function listSavedFlights() {
       confidence,
       emissions,
       weather,
+      add_ons_summary,
       is_predicted
     FROM saved_flights
     ORDER BY created_at DESC, id DESC;
@@ -412,6 +430,7 @@ async function getSavedFlightById(id) {
       confidence,
       emissions,
       weather,
+      add_ons_summary,
       is_predicted
     FROM saved_flights
     WHERE id = ${id}
@@ -907,7 +926,9 @@ app.get("/api/flights/predict", async (req, res) => {
 app.post("/api/saved-flights", async (req, res) => {
   try {
     const payload = req.body?.selectedFlight || req.body;
+    console.log("[FlightSight] POST /api/saved-flights add_ons_summary BEFORE normalize:", payload?.add_ons_summary || payload?.addOnsSummary || "(missing)");
     const normalized = normalizeSavedFlight(payload);
+    console.log("[FlightSight] POST /api/saved-flights add_ons_summary AFTER normalize:", normalized?.addOnsSummary || "(missing)");
 
     if (!normalized) {
       return res.status(400).json({
@@ -931,6 +952,7 @@ app.post("/api/saved-flights", async (req, res) => {
 app.get("/api/saved-flights", async (req, res) => {
   try {
     const flights = await listSavedFlights();
+    console.log("[FlightSight] GET /api/saved-flights returning add_ons_summary values:", flights.map((flight) => ({ id: flight.id, add_ons_summary: flight.add_ons_summary })));
     res.json({ flights });
   } catch (err) {
     console.error("GET /api/saved-flights error:", err);
@@ -1751,6 +1773,13 @@ app.get("/analysis", (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+ensureSavedFlightsSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to ensure saved_flights schema:", err);
+    process.exit(1);
+  });

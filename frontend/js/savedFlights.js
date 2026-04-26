@@ -153,6 +153,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           </div>
         </div>
 
+        ${flight.add_ons_summary ? `
+          <div class="info-box" style="margin-top: 12px;">
+            <strong>Add-ons</strong><br />
+            ${flight.add_ons_summary}
+          </div>
+        ` : ""}
+
         <div class="actions">
           <div class="price">
             ${typeof flight.totalFare === "number" ? `$${flight.totalFare.toFixed(2)}` : "$---"}

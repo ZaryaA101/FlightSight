@@ -469,7 +469,26 @@ function selectFlight(flightId) {
   const flight = flights.find((f) => f.id === flightId);
   if (!flight) return;
 
-  const payload = flight._predictShape || flight;
+  // Store the complete flight object with all UI metrics
+  const payload = flight._predictShape ? {
+    ...flight._predictShape,
+    // Add UI metrics that API doesn't provide
+    safety: flight.safety,
+    co2: flight.co2,
+    weather: flight.weather,
+    seats: flight.seats,
+    score: flight.score,
+    price: flight.price,
+    depart: flight.depart,
+    arrive: flight.arrive,
+    duration: flight.duration,
+    stops: flight.stops,
+    airline: flight.airline,
+    aircraft: flight.aircraft,
+    flight: flight.flight
+  } : flight;
+  
+  console.log("[FlightSight] SELECTING FLIGHT from flightResults.js:", payload);
   localStorage.setItem("selectedFlight", JSON.stringify(payload));
   window.location.href = "Booking.html";
 }

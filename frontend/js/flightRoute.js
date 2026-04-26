@@ -17,6 +17,8 @@ function loadGoogleMaps() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  console.log("[FlightSight] flightRoute.js loaded");
+  
   const continueBtn = document.querySelector(".continue-btn");
   const airportList = document.getElementById("airportList");
   const originInput = document.getElementById("origin");
@@ -71,31 +73,43 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function loadCSV() {
-    const response = await fetch("/backend/data/airports_list.csv");
-    const csvText = await response.text();
+    console.log("[FlightSight] Loading airports from /data/airports_list.csv");
+    try {
+      const response = await fetch("/data/airports_list.csv");
+      if (!response.ok) {
+        console.error("[FlightSight] Failed to fetch airports:", response.status, response.statusText);
+        return;
+      }
+      const csvText = await response.text();
+      console.log("[FlightSight] Airports CSV loaded, parsing...");
 
-    const rows = csvText.split("\n").slice(1);
-    rows.forEach((row) => {
-      const cols = row.split(",");
-      if (cols.length < 4) return;
+      const rows = csvText.split("\n").slice(1);
+      rows.forEach((row) => {
+        const cols = row.split(",");
+        if (cols.length < 4) return;
 
-      const airport = {
-        code: cols[0].trim(),
-        name: `${cols[0].trim()} - ${cols[2].trim()}`,
-        city: cols[2].trim(),
-      };
+        const airport = {
+          code: cols[0].trim(),
+          name: `${cols[0].trim()} - ${cols[2].trim()}`,
+          city: cols[2].trim(),
+        };
 
-      airports.push(airport);
-    });
+        airports.push(airport);
+      });
 
-    airports.sort((a, b) => a.city.localeCompare(b.city));
+      console.log("[FlightSight] Airports loaded:", airports.length, "airports");
+      
+      airports.sort((a, b) => a.city.localeCompare(b.city));
 
-    airports.forEach((airport) => {
-      const li = document.createElement("li");
-      li.dataset.code = airport.code;
-      li.textContent = `${airport.code} - ${airport.city}`;
-      airportList.appendChild(li);
-    });
+      airports.forEach((airport) => {
+        const li = document.createElement("li");
+        li.dataset.code = airport.code;
+        li.textContent = `${airport.code} - ${airport.city}`;
+        airportList.appendChild(li);
+      });
+    } catch (err) {
+      console.error("[FlightSight] Error loading airports:", err);
+    }
   }
 
   function setupAutocomplete(inputId, suggestionId, onSelect) {
@@ -216,6 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function setOrigin(airport) {
+    console.log("[FlightSight] Departure airport selected:", airport.code, airport.city);
     selectedOrigin = airport;
     clickCount = 1;
     originInput.value = airport.name;
@@ -227,6 +242,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function setDestination(airport) {
+    console.log("[FlightSight] Destination airport selected:", airport.code, airport.city);
     selectedDestination = airport;
     clickCount = 0;
     destinationInput.value = airport.name;
@@ -267,6 +283,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function initMap() {
+    console.log("[FlightSight] Initializing map with", Object.keys(airportCoords).length, "airports");
     map = new google.maps.Map(document.getElementById("map"), {
       zoom: 4,
       center: { lat: 39.8283, lng: -98.5795 },
@@ -281,8 +298,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       marker.addListener("click", () => {
+        console.log("[FlightSight] Marker clicked:", code);
         const airport = airports.find((a) => a.code === code);
-        if (!airport) return;
+        if (!airport) {
+          console.warn("[FlightSight] Airport not found in airports array for code:", code);
+          return;
+        }
         if (clickCount === 0) setOrigin(airport);
         else setDestination(airport);
       });
@@ -346,6 +367,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       const finalOrigin = selectedOrigin || parseStoredAirport("origin");
       const finalDestination = selectedDestination || parseStoredAirport("destination");
 
+      console.log("[FlightSight] Continue button clicked");
+      console.log("[FlightSight] Final origin:", finalOrigin?.code, finalOrigin?.city);
+      console.log("[FlightSight] Final destination:", finalDestination?.code, finalDestination?.city);
+
       if (!finalOrigin || !finalDestination) {
         alert("Please select both origin and destination.");
         return;
@@ -355,6 +380,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       selectedDestination = finalDestination;
 
       storeRouteSelection();
+      console.log("[FlightSight] Route saved to localStorage, navigating to calendar.html");
       window.location.href = "calendar.html";
     });
   }
@@ -363,6 +389,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupAutocomplete("destination", "destinationSuggestions", setDestination);
 
   await Promise.all([loadGoogleMaps(), loadCSV()]);
+  console.log("[FlightSight] Google Maps and airports loaded, initializing...");
   initMap();
   hydrateSelectionFromStorage();
+  console.log("[FlightSight] flightRoute.js initialization complete");
 });
