@@ -309,19 +309,21 @@ function adaptPredictFlight(p, index) {
     id: p.legId || `PRED-${index + 1}`,
     airline: p.airline || "Unknown Airline",
     flight: (p.legId || `PRED${index + 1}`).toString().slice(0, 10).toUpperCase(),
-    aircraft: "Predicted",
+    aircraft: p.isPredicted ? "Predicted" : "Unknown",
     depart: toShortTime(p.departureTime),
-    departCode: p.origin || originCode,
+    departCode: normalizeApiCode(p.origin, originCode),
     arrive: toShortTime(p.arrivalTime),
-    arriveCode: p.destination || destinationCode,
+    arriveCode: normalizeApiCode(p.destination, destinationCode),
+    // ✅ Use actual ML values directly
     duration: p.travelDuration || p.flightTime || "—",
-    stops: Number(p.stops) || 0,
+    stops: Number.isFinite(Number(p.stops)) ? Number(p.stops) : 0,
     price: Number(p.totalFare) || 0,
     safety,
     co2,
     weather,
     seats,
     score: 0,
+    _rawStops: p.stops, // keep original for filter
     _predictShape: {
       legId: p.legId,
       origin: p.origin,
@@ -398,7 +400,7 @@ async function loadLiveFlights() {
 const state = {
   view: "filters",
   maxPrice: 1000,
-  stopsAllowed: new Set([0, 1, 2]),
+  stopsAllowed: new Set([0, 1, 2, 3]),
   minSafety: 0,
   sortBy: "price_asc",
   compare: []
@@ -904,12 +906,14 @@ function stopsChanged() {
   if ($("stops0").checked) state.stopsAllowed.add(0);
   if ($("stops1").checked) state.stopsAllowed.add(1);
   if ($("stops2").checked) state.stopsAllowed.add(2);
+  if ($("stops3").checked) state.stopsAllowed.add(3);
   rerender();
 }
 
 $("stops0").addEventListener("change", stopsChanged);
 $("stops1").addEventListener("change", stopsChanged);
 $("stops2").addEventListener("change", stopsChanged);
+$("stops3").addEventListener("change", stopsChanged);
 
 $("sortBy").addEventListener("change", (e) => {
   state.sortBy = e.target.value;
@@ -919,7 +923,7 @@ $("sortBy").addEventListener("change", (e) => {
 $("clearFiltersBtn").addEventListener("click", () => {
   state.maxPrice = 1000;
   state.minSafety = 0;
-  state.stopsAllowed = new Set([0, 1, 2]);
+  state.stopsAllowed = new Set([0, 1, 2, 3]);
   state.sortBy = "price_asc";
   syncFilterUI();
   rerender();

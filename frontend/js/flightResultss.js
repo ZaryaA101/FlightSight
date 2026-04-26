@@ -326,6 +326,7 @@ function syncFilterUI() {
   $("stops0").checked = state.stopsAllowed.has(0);
   $("stops1").checked = state.stopsAllowed.has(1);
   $("stops2").checked = state.stopsAllowed.has(2);
+  $("stops3").checked = state.stopsAllowed.has(3);
 
   $("sortBy").value = state.sortBy;
 }
@@ -339,7 +340,7 @@ function selectFlight(flightId) {
 }
 
 function flightCardHTML(f, includeOppCallout = false, cheapestPrice = null) {
-  const stopText = f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops");
+  const stopText = f.stops === 0 ? "Nonstop" : f.stops === 1 ? "1 stop" : f.stops === 2 ? "2 stops" : "3 stops";
 
   const oppText = (() => {
     if (!includeOppCallout || cheapestPrice == null) return "";
@@ -612,7 +613,7 @@ function renderCompareCards(filtered) {
       <div class="compare-mini-grid">
         <div>Price</div><div><b>$${safe(f.price)}</b></div>
         <div>Duration</div><div><b>${safe(f.duration)}</b></div>
-        <div>Stops</div><div><b>${f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops")}</b></div>
+        <div>Stops</div><div><b>${f.stops === 0 ? "Nonstop" : f.stops === 1 ? "1 stop" : f.stops === 2 ? "2 stops" : "3 stops"}</b></div>
       </div>
     `;
   });
@@ -669,7 +670,7 @@ function renderComparisonTable(filtered) {
     ["Safety Rating", ...cols.map((f) => cell(`${f.safety}%`, f.safety === bestSafety))],
     ["CO₂ Emissions", ...cols.map((f) => cell(`${f.co2} kg`, f.co2 === bestCo2))],
     ["Duration", ...cols.map((f) => cell(`${f.duration}`, durationToMinutes(f.duration) === bestDur))],
-    ["Stops", ...cols.map((f) => `${f.stops === 0 ? "Nonstop" : (f.stops === 1 ? "1 stop" : "2 stops")}`)],
+    ["Stops", ...cols.map((f) => `${f.stops === 0 ? "Nonstop" : f.stops === 1 ? "1 stop" : f.stops === 2 ? "2 stops" : "3 stops"}`)],
     ["Aircraft", ...cols.map((f) => f.aircraft)],
     ["Departure", ...cols.map((f) => f.depart)],
     ["Arrival", ...cols.map((f) => f.arrive)],
@@ -749,12 +750,14 @@ function stopsChanged() {
   if ($("stops0").checked) state.stopsAllowed.add(0);
   if ($("stops1").checked) state.stopsAllowed.add(1);
   if ($("stops2").checked) state.stopsAllowed.add(2);
+  if ($("stops3").checked) state.stopsAllowed.add(3);
   rerender();
 }
 
 $("stops0").addEventListener("change", stopsChanged);
 $("stops1").addEventListener("change", stopsChanged);
 $("stops2").addEventListener("change", stopsChanged);
+$("stops3").addEventListener("change", stopsChanged);
 
 $("sortBy").addEventListener("change", (e) => {
   state.sortBy = e.target.value;
@@ -764,7 +767,7 @@ $("sortBy").addEventListener("change", (e) => {
 $("clearFiltersBtn").addEventListener("click", () => {
   state.maxPrice = 1000;
   state.minSafety = 0;
-  state.stopsAllowed = new Set([0, 1, 2]);
+  state.stopsAllowed = new Set([0, 1, 2, 3]);
   state.sortBy = "price_asc";
   syncFilterUI();
   rerender();
