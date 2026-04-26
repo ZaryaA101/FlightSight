@@ -484,13 +484,20 @@ function restoreAddOnsFromFlight(flight) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("[FlightSight] Booking page DOMContentLoaded");
+
+  const referrer = localStorage.getItem("bookingReferrer") || "flightResults.html";
+  const backLink = document.querySelector(".back-link");
+  if (backLink) backLink.href = referrer;
+
   const selectedFlight = getSelectedFlight();
   console.log("[FlightSight] getSelectedFlight() returned:", selectedFlight);
+
 
   if (selectedFlight) {
     applySelectedFlightToBookingUI(selectedFlight);
     window.flightSightSelectedFlight = selectedFlight;
     await refreshWeatherForecast();
+    wireAirlineWebsiteButton(selectedFlight);  // ← add
     console.log("[FlightSight] Applied selectedFlight to UI");
     
     // If flight has saved add-ons, restore them to the UI
@@ -518,6 +525,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     await refreshWeatherForecast();
+    wireAirlineWebsiteButton(rawFlight);  // ← add
     return;
   }
 
@@ -542,6 +550,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyBookingDataToUI(route, flight, dates);
 });
 
+function wireAirlineWebsiteButton(flight) {
+  const continueBtn = document.querySelector(".btn-secondary");
+  if (!continueBtn) return;
+
+  const website = getAirlineWebsite(flight?.airline);
+  if (website) {
+    continueBtn.addEventListener("click", () => window.open(website, "_blank"));
+  } else {
+    continueBtn.disabled = true;
+    continueBtn.title = "No website available for this airline";
+  }
+}
 
 async function refreshEmissions() {
   const selectedFlight = getSelectedFlight();
@@ -993,7 +1013,7 @@ const AIRLINE_DATA = {
   "Delta": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 25 },
   "Alaska Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 10, hasWifi: true, wifi_cost: 8, premium_meal_cost: 12, travel_insurance_cost: 20 },
   "American Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 50, add_checkedIn_2nd: 60, max_checkedIn: 10, hasWifi: true, wifi_cost: 10, premium_meal_cost: 15, travel_insurance_cost: 22 },
-  "United Airlines": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 22 },
+  "United": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 45, add_checkedIn_2nd: 55, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 15, travel_insurance_cost: 22 },
   "Southern Airways Express": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 35, add_checkedIn_2nd: 45, max_checkedIn: 2, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
   "JetBlue Airways": { add_carryOn: 0, max_carryOn: 1, add_checkedIn_1st: 39, add_checkedIn_2nd: 50, max_checkedIn: 10, hasWifi: true, wifi_cost: 0, premium_meal_cost: 12, travel_insurance_cost: 20 },
   "Frontier Airlines": { add_carryOn: 75, max_carryOn: 1, add_checkedIn_1st: 55, add_checkedIn_2nd: 75, max_checkedIn: 10, hasWifi: false, wifi_cost: 0, premium_meal_cost: 0, travel_insurance_cost: 0 },
@@ -1026,6 +1046,33 @@ function getAirlineData(airlineName) {
   }
   console.log("[FlightSight] getAirlineData: no match found for airline:", airlineName, "using fallback defaults");
   return DEFAULT_AIRLINE_DATA;
+}
+
+const AIRLINE_WEBSITES = {
+  "Delta": "https://www.delta.com",
+  "Alaska Airlines": "https://www.alaskaair.com",
+  "American Airlines": "https://www.aa.com",
+  "United": "https://www.united.com",
+  "Southern Airways Express": "https://www.iflysouthern.com",
+  "JetBlue Airways": "https://www.jetblue.com",
+  "Frontier Airlines": "https://www.flyfrontier.com",
+  "Cape Air": "https://www.capeair.com",
+  "Key Lime Air": "https://www.keylimelime.com",
+  "Contour Airlines": "https://www.contourairlines.com",
+  "Boutique Air": "https://www.boutiqueair.com",
+  "Sun Country Airlines": "https://www.suncountry.com",
+  "Silver Airways": "https://www.silverairways.com",
+  "Hawaiian Airlines": "https://www.hawaiianairlines.com",
+};
+
+function getAirlineWebsite(airlineName) {
+  if (!airlineName) return null;
+  if (AIRLINE_WEBSITES[airlineName]) return AIRLINE_WEBSITES[airlineName];
+  const key = Object.keys(AIRLINE_WEBSITES).find(k =>
+    airlineName.toLowerCase().includes(k.toLowerCase()) ||
+    k.toLowerCase().includes(airlineName.toLowerCase())
+  );
+  return key ? AIRLINE_WEBSITES[key] : null;
 }
 
 function applyAirlineBaggageAndServices(flight) {

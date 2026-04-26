@@ -207,6 +207,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         localStorage.setItem("selectedFlight", JSON.stringify(flight));
+        localStorage.setItem("bookingReferrer", "savedFlights.html");
         window.location.href = "booking.html";
       });
     });
