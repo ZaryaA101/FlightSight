@@ -15,14 +15,14 @@ Flight Sight is an application designed to help users make more informed decisio
 <img width="800" height="500" alt="Screenshot 2025-10-30 211225" src="https://github.com/user-attachments/assets/e18bdfd8-22b7-46e8-8a00-340aa4d8191d" />
 
 ## Navigation / How to Run FlightSight
-1. Create an .env file and paste 
+1. Install Node.js to your device: [Download Link](https://nodejs.org/en/download)
+  
+2. Create an .env file and paste 
 `DATABASE_URL=postgresql://neondb_owner:npg_XvfF1NQCUtJ2@ep-royal-lake-af3btgsi-pooler.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 PORT=3000`
 
-2. Run this in terminal for login/sign up pages to work
+3. Run this in terminal for login/sign up pages to work
 `npm install bcryptjs`
-
-3. Install Node.js to your device: [Download Link](https://nodejs.org/en/download)
 
 4. Start the server by running 'node server.js' in your terminal. It should be running on port 3000. In your web browser, paste
 `http://localhost:3000/html/login.html`
