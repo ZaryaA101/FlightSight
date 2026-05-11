@@ -22,7 +22,9 @@ PORT=3000`
 2. Run this in terminal for login/sign up pages to work
 `npm install bcryptjs`
 
-3. It should be running on port 3000. In your web browser, paste
+3. Install Node.js to your device: [Download Link](https://nodejs.org/en/download)
+
+4. Start the server by running 'node server.js' in your terminal. It should be running on port 3000. In your web browser, paste
 `http://localhost:3000/html/login.html`
 
 You are all set. 
