@@ -36,7 +36,7 @@ One-way flights found on Expedia between 2022-04-16 and 2022-10-05
 Since the original dataset is too big to use for machine learning, we extracted a portion of it using extract_sample.py. The extracted dataset has 2 million rows which was used for the model. 
 - Extracted dataset: flights_sample.csv
 - Extracted dataset with added engineered features: flights_engineered.csv
-Both datasets are still to big to be pushed into github so I included both on the .gitignore. The two dataset can be forund on the following google drive folder:
+- Both datasets are still too big to be pushed into github so I included both on the .gitignore. The two dataset can be found on the following google drive folder:
 [Dataset used in the project](https://drive.google.com/drive/folders/1_baZXrMwvq_H7fsaeXSTsdx_Ltgb2uop)
 
 ### Source
